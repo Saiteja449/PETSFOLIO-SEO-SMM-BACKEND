@@ -3,6 +3,8 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import connectDB from './config/db.js';
 import instagramRoutes from './routes/instagramRoutes.js';
+import youtubeRoutes from './routes/youtubeRoutes.js';
+import analyticsRoutes from './routes/analyticsRoutes.js';
 
 dotenv.config();
 
@@ -14,6 +16,8 @@ app.use(express.json());
 
 // Routes
 app.use('/api/instagram', instagramRoutes);
+app.use('/api/youtube', youtubeRoutes);
+app.use('/api/google/analytics', analyticsRoutes);
 
 // Test Route
 app.get('/', (req, res) => {
