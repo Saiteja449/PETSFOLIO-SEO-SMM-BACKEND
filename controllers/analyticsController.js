@@ -27,7 +27,7 @@ export const getProperties = async (req, res) => {
     if (!companyId) return res.status(400).json({ message: 'companyId is required' });
 
     const account = await GoogleAccount.findOne({ companyId });
-    if (!account) return res.status(404).json({ message: 'Google account not connected.' });
+    if (!account) return res.status(404).json({ success: false, message: 'Google account not connected.' });
 
     const authClient = getOAuthClient(account);
     const analyticsAdmin = google.analyticsadmin({ version: 'v1beta', auth: authClient });
@@ -47,10 +47,10 @@ export const getProperties = async (req, res) => {
       });
     });
 
-    res.status(200).json(properties);
+    res.status(200).json({ success: true, data: properties });
   } catch (error) {
     console.error('Error fetching GA4 properties:', error);
-    res.status(500).json({ message: 'Error fetching properties', error: error.message });
+    res.status(500).json({ success: false, message: 'Error fetching properties', error: error.message });
   }
 };
 
@@ -83,10 +83,10 @@ export const saveProperty = async (req, res) => {
       await property.save();
     }
 
-    res.status(200).json({ message: 'Property saved successfully', property });
+    res.status(200).json({ success: true, message: 'Property saved successfully', property });
   } catch (error) {
     console.error('Error saving GA4 property:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
@@ -150,10 +150,10 @@ export const getOverview = async (req, res) => {
       }
     }
 
-    res.status(200).json({ totals, trend: response.rows });
+    res.status(200).json({ success: true, totals, trend: response.rows });
   } catch (error) {
     console.error('Error fetching GA4 overview:', error);
-    res.status(500).json({ message: 'Error fetching overview', error: error.message });
+    res.status(500).json({ success: false, message: 'Error fetching overview', error: error.message });
   }
 };
 
@@ -172,9 +172,9 @@ export const getTraffic = async (req, res) => {
       ['activeUsers', 'sessions', 'conversions', 'engagementRate']
     );
 
-    res.status(200).json(response.rows);
+    res.status(200).json({ success: true, data: response.rows });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching traffic', error: error.message });
+    res.status(500).json({ success: false, message: 'Error fetching traffic', error: error.message });
   }
 };
 
@@ -193,9 +193,9 @@ export const getPages = async (req, res) => {
       ['screenPageViews', 'activeUsers', 'averageSessionDuration', 'bounceRate']
     );
 
-    res.status(200).json(response.rows);
+    res.status(200).json({ success: true, data: response.rows });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching pages', error: error.message });
+    res.status(500).json({ success: false, message: 'Error fetching pages', error: error.message });
   }
 };
 
@@ -214,9 +214,9 @@ export const getAudience = async (req, res) => {
       ['activeUsers']
     );
 
-    res.status(200).json(response.rows);
+    res.status(200).json({ success: true, data: response.rows });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching audience', error: error.message });
+    res.status(500).json({ success: false, message: 'Error fetching audience', error: error.message });
   }
 };
 
@@ -235,9 +235,9 @@ export const getEvents = async (req, res) => {
       ['eventCount', 'activeUsers']
     );
 
-    res.status(200).json(response.rows);
+    res.status(200).json({ success: true, data: response.rows });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching events', error: error.message });
+    res.status(500).json({ success: false, message: 'Error fetching events', error: error.message });
   }
 };
 
@@ -263,9 +263,9 @@ export const getRealtime = async (req, res) => {
       metrics: [{ name: 'activeUsers' }]
     });
 
-    res.status(200).json(response.rows);
+    res.status(200).json({ success: true, data: response.rows });
   } catch (error) {
     console.error('Error fetching realtime:', error);
-    res.status(500).json({ message: 'Error fetching realtime', error: error.message });
+    res.status(500).json({ success: false, message: 'Error fetching realtime', error: error.message });
   }
 };

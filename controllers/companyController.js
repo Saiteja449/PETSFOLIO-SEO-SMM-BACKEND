@@ -14,10 +14,12 @@ const getCompanies = async (req, res) => {
       employeesCount: c.employeesCount,
       addedDate: c.addedDate ? c.addedDate.toISOString().split("T")[0] : null,
     }));
-    res.json(formatted);
+    res.json({ success: true, data: formatted });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Server error fetching companies" });
+    res
+      .status(500)
+      .json({ success: false, message: "Server error fetching companies" });
   }
 };
 
@@ -25,7 +27,9 @@ const createCompany = async (req, res) => {
   const { name, industry, website } = req.body;
 
   if (!name) {
-    return res.status(400).json({ message: "Company name is required" });
+    return res
+      .status(400)
+      .json({ success: false, message: "Company name is required" });
   }
 
   try {
@@ -35,7 +39,10 @@ const createCompany = async (req, res) => {
     if (existing) {
       return res
         .status(400)
-        .json({ message: "Company with a similar name already exists." });
+        .json({
+          success: false,
+          message: "Company with a similar name already exists.",
+        });
     }
 
     const company = await Company.create({
@@ -48,6 +55,7 @@ const createCompany = async (req, res) => {
     });
 
     res.status(201).json({
+      success: true,
       _id: company._id,
       id: company.id,
       name: company.name,
@@ -58,7 +66,9 @@ const createCompany = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Server error creating company" });
+    res
+      .status(500)
+      .json({ success: false, message: "Server error creating company" });
   }
 };
 
@@ -67,36 +77,48 @@ const deleteCompany = async (req, res) => {
     const company = await Company.findOne({ id: req.params.id });
 
     if (!company) {
-      return res.status(404).json({ message: "Company not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Company not found" });
     }
 
     await Company.deleteOne({ _id: company._id });
-    res.json({ message: "Company deleted successfully" });
+    res.json({ success: true, message: "Company deleted successfully" });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Server error deleting company" });
+    res
+      .status(500)
+      .json({ success: false, message: "Server error deleting company" });
   }
 };
 
 const getCompanyIntegrations = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Check Meta (Instagram/Facebook)
     const metaAccount = await InstagramAccount.findOne({ companyId: id });
-    
+
     // Check Google (YouTube)
     const googleAccount = await YoutubeAccount.findOne({ companyId: id });
-    
+
     res.json({
+      success: true,
       metaConnected: !!metaAccount,
       fbConnected: metaAccount ? !!metaAccount.facebookPageId : false,
-      igConnected: metaAccount ? !!metaAccount.instagramBusinessAccountId : false,
-      googleConnected: !!googleAccount
+      igConnected: metaAccount
+        ? !!metaAccount.instagramBusinessAccountId
+        : false,
+      googleConnected: !!googleAccount,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Server error fetching company integrations" });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Server error fetching company integrations",
+      });
   }
 };
 

@@ -17,7 +17,9 @@ export const connectInstagramAccount = async (req, res) => {
     } = req.body;
 
     if (!companyId || !facebookPageId || !pageAccessToken) {
-      return res.status(400).json({ message: "Missing required fields" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Missing required fields" });
     }
 
     let account = await InstagramAccount.findOne({ companyId });
@@ -88,7 +90,9 @@ export const disconnectInstagramAccount = async (req, res) => {
   try {
     const { companyId } = req.params;
     if (!companyId) {
-      return res.status(400).json({ message: "Company ID is required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Company ID is required" });
     }
     await InstagramAccount.deleteMany({ companyId });
     res
@@ -110,6 +114,7 @@ export const getCompanyInstagramInsights = async (req, res) => {
 
     if (!account) {
       return res.status(200).json({
+        success: true,
         message: "No Facebook/Instagram account connected",
         data: null,
       });
@@ -136,6 +141,7 @@ export const getCompanyInstagramInsights = async (req, res) => {
     const growthRate = "+5.0%";
 
     res.status(200).json({
+      success: true,
       message: "Insights retrieved successfully",
       data: {
         pageName: account.name || "Facebook Page",
@@ -146,7 +152,7 @@ export const getCompanyInstagramInsights = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching Facebook insights:", error.message);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 

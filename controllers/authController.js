@@ -18,6 +18,7 @@ const loginUser = async (req, res) => {
 
     if (user && (await user.matchPassword(password))) {
       res.json({
+        success: true,
         _id: user._id,
         name: user.name,
         email: user.email,
@@ -27,11 +28,13 @@ const loginUser = async (req, res) => {
         token: generateToken(user._id),
       });
     } else {
-      res.status(401).json({ message: "Invalid email or password" });
+      res
+        .status(401)
+        .json({ success: false, message: "Invalid email or password" });
     }
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -45,14 +48,20 @@ const setupAdmin = async (req, res) => {
     if (adminExists) {
       return res
         .status(400)
-        .json({ message: "Admin already exists. Setup disabled." });
+        .json({
+          success: false,
+          message: "Admin already exists. Setup disabled.",
+        });
     }
 
     const { email, password, name } = req.body;
     if (!email || !password || !name) {
       return res
         .status(400)
-        .json({ message: "Please provide email, password, and name" });
+        .json({
+          success: false,
+          message: "Please provide email, password, and name",
+        });
     }
 
     const user = await User.create({
@@ -64,6 +73,7 @@ const setupAdmin = async (req, res) => {
     });
 
     res.status(201).json({
+      success: true,
       _id: user._id,
       name: user.name,
       email: user.email,
@@ -72,7 +82,7 @@ const setupAdmin = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -86,7 +96,9 @@ const createEmployee = async (req, res) => {
   try {
     const userExists = await User.findOne({ email });
     if (userExists) {
-      return res.status(400).json({ message: "User already exists" });
+      return res
+        .status(400)
+        .json({ success: false, message: "User already exists" });
     }
 
     // Default password for new employees if not provided
@@ -103,6 +115,7 @@ const createEmployee = async (req, res) => {
 
     // Don't send token for employee creation, just return success
     res.status(201).json({
+      success: true,
       _id: user._id,
       name: user.name,
       email: user.email,
@@ -112,7 +125,7 @@ const createEmployee = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -122,10 +135,10 @@ const createEmployee = async (req, res) => {
 const getEmployees = async (req, res) => {
   try {
     const employees = await User.find({ role: "employee" }).select("-password");
-    res.json(employees);
+    res.json({ success: true, data: employees });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -138,13 +151,13 @@ const deleteEmployee = async (req, res) => {
 
     if (user) {
       await User.deleteOne({ _id: user._id });
-      res.json({ message: "User removed" });
+      res.json({ success: true, message: "User removed" });
     } else {
-      res.status(404).json({ message: "User not found" });
+      res.status(404).json({ success: false, message: "User not found" });
     }
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 // @desc    Update employee password
@@ -159,13 +172,13 @@ const updateEmployeePassword = async (req, res) => {
     if (user) {
       user.password = password;
       await user.save();
-      res.json({ message: "Password updated successfully" });
+      res.json({ success: true, message: "Password updated successfully" });
     } else {
-      res.status(404).json({ message: "User not found" });
+      res.status(404).json({ success: false, message: "User not found" });
     }
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 

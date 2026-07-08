@@ -20,7 +20,7 @@ export const connectYoutubeAccount = async (req, res) => {
     if (!code || !companyId) {
       return res
         .status(400)
-        .json({ message: "Code and companyId are required" });
+        .json({ success: false, message: "Code and companyId are required" });
     }
 
     const client = new google.auth.OAuth2(
@@ -78,7 +78,10 @@ export const connectYoutubeAccount = async (req, res) => {
     if (!channelRes.data.items || channelRes.data.items.length === 0) {
       return res
         .status(404)
-        .json({ message: "No YouTube channel found for this account." });
+        .json({
+          success: false,
+          message: "No YouTube channel found for this account.",
+        });
     }
 
     const channel = channelRes.data.items[0];
@@ -110,12 +113,15 @@ export const connectYoutubeAccount = async (req, res) => {
     }
 
     res.status(200).json({
+      success: true,
       message: "YouTube connected successfully",
       account,
     });
   } catch (error) {
     console.error("Error connecting YouTube:", error.message);
-    res.status(500).json({ message: "Server error", error: error.message });
+    res
+      .status(500)
+      .json({ success: false, message: "Server error", error: error.message });
   }
 };
 
@@ -128,7 +134,9 @@ export const getAccountInsights = async (req, res) => {
     const account = await YoutubeAccount.findById(accountId);
 
     if (!account) {
-      return res.status(404).json({ message: "Account not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Account not found" });
     }
 
     // In a real scenario, use google.youtubeAnalytics API with account.accessToken
@@ -140,6 +148,7 @@ export const getAccountInsights = async (req, res) => {
     if (insights.length === 0) {
       // Return some mock data if db is empty
       return res.status(200).json({
+        success: true,
         message: "Insights retrieved successfully (mock)",
         data: [
           {
@@ -153,12 +162,13 @@ export const getAccountInsights = async (req, res) => {
     }
 
     res.status(200).json({
+      success: true,
       message: "Insights retrieved successfully",
       data: insights,
     });
   } catch (error) {
     console.error("Error fetching YouTube insights:", error.message);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -172,6 +182,7 @@ export const getCompanyYoutubeInsights = async (req, res) => {
 
     if (!account) {
       return res.status(200).json({
+        success: true,
         message: "No YouTube account connected",
         data: null,
       });
@@ -254,6 +265,7 @@ export const getCompanyYoutubeInsights = async (req, res) => {
     }
 
     res.status(200).json({
+      success: true,
       message: "Insights retrieved successfully",
       data: {
         channelTitle,
@@ -264,7 +276,7 @@ export const getCompanyYoutubeInsights = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching YouTube insights:", error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -275,7 +287,9 @@ export const disconnectYoutubeAccount = async (req, res) => {
   try {
     const { companyId } = req.params;
     if (!companyId) {
-      return res.status(400).json({ message: "Company ID is required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Company ID is required" });
     }
     await YoutubeAccount.deleteMany({ companyId });
     await GoogleAccount.deleteMany({ companyId });
