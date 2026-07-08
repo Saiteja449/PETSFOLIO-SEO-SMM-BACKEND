@@ -1,9 +1,9 @@
-import User from '../models/User.js';
-import jwt from 'jsonwebtoken';
+import User from "../models/User.js";
+import jwt from "jsonwebtoken";
 
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'fallback_secret', {
-    expiresIn: '30d',
+  return jwt.sign({ id }, process.env.JWT_SECRET || "fallback_secret", {
+    expiresIn: "30d",
   });
 };
 
@@ -27,11 +27,11 @@ const loginUser = async (req, res) => {
         token: generateToken(user._id),
       });
     } else {
-      res.status(401).json({ message: 'Invalid email or password' });
+      res.status(401).json({ message: "Invalid email or password" });
     }
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -41,22 +41,26 @@ const loginUser = async (req, res) => {
 const setupAdmin = async (req, res) => {
   try {
     // Check if any admin exists
-    const adminExists = await User.findOne({ role: 'manager' });
+    const adminExists = await User.findOne({ role: "manager" });
     if (adminExists) {
-      return res.status(400).json({ message: 'Admin already exists. Setup disabled.' });
+      return res
+        .status(400)
+        .json({ message: "Admin already exists. Setup disabled." });
     }
 
     const { email, password, name } = req.body;
     if (!email || !password || !name) {
-      return res.status(400).json({ message: 'Please provide email, password, and name' });
+      return res
+        .status(400)
+        .json({ message: "Please provide email, password, and name" });
     }
 
     const user = await User.create({
       name,
       email,
       password,
-      role: 'manager',
-      department: 'marketing',
+      role: "manager",
+      department: "marketing",
     });
 
     res.status(201).json({
@@ -68,7 +72,7 @@ const setupAdmin = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -76,23 +80,24 @@ const setupAdmin = async (req, res) => {
 // @route   POST /api/auth/employees
 // @access  Private/Admin
 const createEmployee = async (req, res) => {
-  const { name, email, role, department, assignedCompanies } = req.body;
+  const { name, email, role, department, assignedCompanies, password } =
+    req.body;
 
   try {
     const userExists = await User.findOne({ email });
     if (userExists) {
-      return res.status(400).json({ message: 'User already exists' });
+      return res.status(400).json({ message: "User already exists" });
     }
 
-    // Default password for new employees
-    const defaultPassword = 'Welcome123';
+    // Default password for new employees if not provided
+    const defaultPassword = "Welcome123";
 
     const user = await User.create({
       name,
       email,
-      password: defaultPassword,
-      role: 'employee',
-      department: department || 'general',
+      password: password || defaultPassword,
+      role: role || "employee",
+      department: department || "seo",
       assignedCompanies: assignedCompanies || [],
     });
 
@@ -107,7 +112,7 @@ const createEmployee = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -116,11 +121,11 @@ const createEmployee = async (req, res) => {
 // @access  Private/Admin
 const getEmployees = async (req, res) => {
   try {
-    const employees = await User.find({ role: 'employee' }).select('-password');
+    const employees = await User.find({ role: "employee" }).select("-password");
     res.json(employees);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -133,13 +138,34 @@ const deleteEmployee = async (req, res) => {
 
     if (user) {
       await User.deleteOne({ _id: user._id });
-      res.json({ message: 'User removed' });
+      res.json({ message: "User removed" });
     } else {
-      res.status(404).json({ message: 'User not found' });
+      res.status(404).json({ message: "User not found" });
     }
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: "Server error" });
+  }
+};
+// @desc    Update employee password
+// @route   PUT /api/auth/employees/:id/password
+// @access  Private/Admin
+const updateEmployeePassword = async (req, res) => {
+  const { password } = req.body;
+
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (user) {
+      user.password = password;
+      await user.save();
+      res.json({ message: "Password updated successfully" });
+    } else {
+      res.status(404).json({ message: "User not found" });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -148,5 +174,6 @@ export {
   setupAdmin,
   createEmployee,
   getEmployees,
-  deleteEmployee
+  deleteEmployee,
+  updateEmployeePassword,
 };

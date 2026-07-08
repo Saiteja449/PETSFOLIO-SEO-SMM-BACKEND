@@ -11,7 +11,7 @@ const instagramAccountSchema = new mongoose.Schema({
   },
   instagramBusinessAccountId: {
     type: String,
-    required: true
+    required: false
   },
   pageAccessToken: {
     type: String,

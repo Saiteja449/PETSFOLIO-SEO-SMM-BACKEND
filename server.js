@@ -7,6 +7,9 @@ import youtubeRoutes from './routes/youtubeRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import companyRoutes from './routes/companyRoutes.js';
+import targetRoutes from './routes/targetRoutes.js';
+import smmTaskRoutes from './routes/smmTaskRoutes.js';
+import { setupAnalyticsPoller } from './jobs/analyticsPoller.js';
 
 dotenv.config();
 
@@ -22,6 +25,8 @@ app.use('/api/youtube', youtubeRoutes);
 app.use('/api/google/analytics', analyticsRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/companies', companyRoutes);
+app.use('/api/targets', targetRoutes);
+app.use('/api/smm-tasks', smmTaskRoutes);
 
 // Test Route
 app.get('/', (req, res) => {
@@ -30,6 +35,9 @@ app.get('/', (req, res) => {
 
 // Connect to DB
 connectDB();
+
+// Initialize Cron Jobs
+setupAnalyticsPoller();
 
 // Only listen if running locally (not on Vercel)
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {

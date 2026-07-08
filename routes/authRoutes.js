@@ -4,7 +4,8 @@ import {
   setupAdmin,
   createEmployee,
   getEmployees,
-  deleteEmployee
+  deleteEmployee,
+  updateEmployeePassword
 } from '../controllers/authController.js';
 import { protect, admin } from '../middleware/authMiddleware.js';
 
@@ -19,5 +20,8 @@ router.route('/employees')
 
 router.route('/employees/:id')
   .delete(protect, admin, deleteEmployee);
+
+router.route('/employees/:id/password')
+  .put(protect, admin, updateEmployeePassword);
 
 export default router;

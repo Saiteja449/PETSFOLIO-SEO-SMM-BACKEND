@@ -1,11 +1,11 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const companySchema = new mongoose.Schema(
   {
     id: {
       type: String,
       required: true,
-      unique: true, // we'll use this for the frontend selectedCompanyId
+      unique: true,
     },
     name: {
       type: String,
@@ -13,16 +13,13 @@ const companySchema = new mongoose.Schema(
     },
     industry: {
       type: String,
-      default: 'Miscellaneous',
+      default: "Miscellaneous",
     },
     website: {
       type: String,
-      default: '',
+      default: "",
     },
-    contacts: {
-      type: String,
-      default: 'N/A',
-    },
+
     employeesCount: {
       type: Number,
       default: 0,
@@ -34,13 +31,13 @@ const companySchema = new mongoose.Schema(
     active: {
       type: Boolean,
       default: true,
-    }
+    },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
-const Company = mongoose.model('Company', companySchema);
+const Company = mongoose.model("Company", companySchema);
 
 export default Company;

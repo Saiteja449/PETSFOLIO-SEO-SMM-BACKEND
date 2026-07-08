@@ -2,7 +2,8 @@ import express from 'express';
 import {
   getCompanies,
   createCompany,
-  deleteCompany
+  deleteCompany,
+  getCompanyIntegrations
 } from '../controllers/companyController.js';
 import { protect, admin } from '../middleware/authMiddleware.js';
 
@@ -14,5 +15,7 @@ router.route('/')
 
 router.route('/:id')
   .delete(protect, admin, deleteCompany);
+
+router.get('/:id/integrations', protect, getCompanyIntegrations);
 
 export default router;
