@@ -4,6 +4,7 @@ import SmmTask from "./models/SmmTask.js";
 import TargetTemplate from "./models/TargetTemplate.js";
 import EmployeeTarget from "./models/EmployeeTarget.js";
 import SeoActivityTemplate from "./models/SeoActivityTemplate.js";
+import SeoTask from "./models/SeoTask.js";
 
 dotenv.config();
 
@@ -16,6 +17,9 @@ const clearData = async () => {
 
     await SmmTask.deleteMany({});
     console.log("SmmTask collection cleared.");
+
+    await SeoTask.deleteMany({});
+    console.log("SeoTask collection cleared.");
 
     await TargetTemplate.deleteMany({});
     console.log("TargetTemplate collection cleared.");

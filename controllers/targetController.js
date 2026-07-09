@@ -144,7 +144,9 @@ export const getEmployeeTargets = async (req, res) => {
   try {
     const targets = await EmployeeTarget.find({
       employeeId: req.params.employeeId,
-    }).populate("templateId");
+    })
+      .populate("templateId")
+      .populate("seoTemplateId");
     res.status(200).json({ success: true, data: targets });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -153,14 +155,19 @@ export const getEmployeeTargets = async (req, res) => {
 
 export const getCompanyEmployeeTargets = async (req, res) => {
   try {
-    const targets = await EmployeeTarget.find().populate("templateId");
-    // filter targets where the template belongs to the requested company
-    // or is a global template (no companyId)
-    // we also should ensure the user actually belongs to this company, but for SMM aggregation this works
-    const companyTargets = targets.filter(t => 
-      t.templateId && 
-      (t.templateId.companyId?.toString() === req.params.companyId || !t.templateId.companyId)
-    );
+    const targets = await EmployeeTarget.find()
+      .populate("templateId")
+      .populate("seoTemplateId");
+    const companyTargets = targets.filter((t) => {
+      if (t.targetType === "SEO" || t.seoTemplateId) {
+        return true;
+      }
+      return (
+        t.templateId &&
+        (t.templateId.companyId?.toString() === req.params.companyId ||
+          !t.templateId.companyId)
+      );
+    });
     res.status(200).json({ success: true, data: companyTargets });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

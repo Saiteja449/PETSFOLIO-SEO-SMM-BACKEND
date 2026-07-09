@@ -9,6 +9,7 @@ import authRoutes from './routes/authRoutes.js';
 import companyRoutes from './routes/companyRoutes.js';
 import targetRoutes from './routes/targetRoutes.js';
 import smmTaskRoutes from './routes/smmTaskRoutes.js';
+import seoTaskRoutes from './routes/seoTaskRoutes.js';
 import { setupAnalyticsPoller } from './jobs/analyticsPoller.js';
 
 dotenv.config();
@@ -27,6 +28,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/targets', targetRoutes);
 app.use('/api/smm-tasks', smmTaskRoutes);
+app.use('/api/seo-tasks', seoTaskRoutes);
 
 // Test Route
 app.get('/', (req, res) => {
