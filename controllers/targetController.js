@@ -5,13 +5,12 @@ import SeoActivityTemplate from "../models/SeoActivityTemplate.js";
 
 export const createTargetTemplate = async (req, res) => {
   try {
-    const { companyId, name, description, platform, metric, defaultGoalValue } =
+    const { companyId, name, description, metric, defaultGoalValue } =
       req.body;
     const template = await TargetTemplate.create({
       companyId: companyId || undefined,
       name,
       description,
-      platform,
       metric,
       defaultGoalValue,
     });

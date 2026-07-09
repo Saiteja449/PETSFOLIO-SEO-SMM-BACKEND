@@ -13,11 +13,6 @@ const TargetTemplateSchema = new mongoose.Schema({
   description: {
     type: String,
   },
-  platform: {
-    type: String,
-    enum: ['Meta', 'YouTube', 'Both'],
-    required: true,
-  },
   metric: {
     type: String,
     enum: ['PostCount', 'TotalViews', 'TotalLikes', 'TotalComments'],
