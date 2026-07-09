@@ -1,6 +1,8 @@
 import SeoTask from '../models/SeoTask.js';
 import SeoActivityTemplate from '../models/SeoActivityTemplate.js';
 import EmployeeTarget from '../models/EmployeeTarget.js';
+import Notification from '../models/Notification.js';
+import User from '../models/User.js';
 
 // Helper to recalculate SEO target progress
 const recalculateSeoTargetProgress = async (employeeId, taskType) => {
@@ -85,6 +87,17 @@ export const createSeoTask = async (req, res) => {
       date,
     });
 
+    if (employeeId) {
+      await Notification.create({
+        title: 'New SEO Task Assigned',
+        message: `You have been assigned a new SEO task: ${title}`,
+        category: 'task',
+        severity: 'info',
+        userId: employeeId,
+        companyId: companyId
+      });
+    }
+
     if (status === 'completed' && employeeId) {
       await recalculateSeoTargetProgress(employeeId, type);
     }
@@ -119,6 +132,25 @@ export const updateSeoTask = async (req, res) => {
       }
       if (updatedTask.employeeId && (originalTask.employeeId !== updatedTask.employeeId || originalTask.type !== updatedTask.type)) {
         await recalculateSeoTargetProgress(updatedTask.employeeId, updatedTask.type);
+      }
+    }
+
+    // Send notification if newly completed
+    if (originalTask.status !== 'completed' && updatedTask.status === 'completed') {
+      const managers = await User.find({ role: 'manager' });
+      const employeeName = updatedTask.assignedTo || 'An employee';
+      
+      const notifications = managers.map(manager => ({
+        title: 'SEO Task Completed',
+        message: `${employeeName} completed the SEO task: ${updatedTask.title}`,
+        category: 'seo',
+        severity: 'success',
+        userId: manager._id,
+        companyId: updatedTask.companyId
+      }));
+      
+      if (notifications.length > 0) {
+        await Notification.insertMany(notifications);
       }
     }
 

@@ -1,6 +1,8 @@
 import SmmTask from '../models/SmmTask.js';
 import TargetTemplate from '../models/TargetTemplate.js';
 import EmployeeTarget from '../models/EmployeeTarget.js';
+import Notification from '../models/Notification.js';
+import User from '../models/User.js';
 
 // Helper to recalculate SMM target progress
 const recalculateSmmTargetProgress = async (employeeId, taskType) => {
@@ -84,6 +86,17 @@ export const createSmmTask = async (req, res) => {
       date,
     });
 
+    if (employeeId) {
+      await Notification.create({
+        title: 'New SMM Task Assigned',
+        message: `You have been assigned a new SMM task: ${title}`,
+        category: 'task',
+        severity: 'info',
+        userId: employeeId,
+        companyId: companyId
+      });
+    }
+
     if (status === 'completed') {
       await recalculateSmmTargetProgress(employeeId, type);
     }
@@ -116,6 +129,30 @@ export const updateSmmTask = async (req, res) => {
       await recalculateSmmTargetProgress(originalTask.employeeId, originalTask.type);
       if (originalTask.employeeId !== updatedTask.employeeId || originalTask.type !== updatedTask.type) {
         await recalculateSmmTargetProgress(updatedTask.employeeId, updatedTask.type);
+      }
+    }
+
+    // Send notification if newly completed
+    if (originalTask.status !== 'completed' && updatedTask.status === 'completed') {
+      const managers = await User.find({ role: 'manager' });
+      
+      let employeeName = 'An employee';
+      if (updatedTask.employeeId) {
+        const emp = await User.findById(updatedTask.employeeId);
+        if (emp) employeeName = emp.name;
+      }
+      
+      const notifications = managers.map(manager => ({
+        title: 'SMM Task Completed',
+        message: `${employeeName} completed the SMM task: ${updatedTask.title}`,
+        category: 'smm',
+        severity: 'success',
+        userId: manager._id,
+        companyId: updatedTask.companyId
+      }));
+      
+      if (notifications.length > 0) {
+        await Notification.insertMany(notifications);
       }
     }
 
