@@ -42,10 +42,13 @@ export const setupAnalyticsPoller = () => {
           newCurrentValue = claimedVideos.reduce((sum, v) => sum + v.comments, 0);
         }
 
+        const goalValue = parseInt(target.targetGoal) || target.weeklyTarget || target.monthlyTarget || 0;
         if (newCurrentValue !== target.currentValue) {
           target.currentValue = newCurrentValue;
-          if (target.currentValue >= target.goalValue) {
+          if (goalValue > 0 && target.currentValue >= goalValue) {
             target.status = 'Completed';
+          } else {
+            target.status = 'In Progress';
           }
           await target.save();
           console.log(`Updated target for employee ${target.employeeId} - New Value: ${target.currentValue}`);

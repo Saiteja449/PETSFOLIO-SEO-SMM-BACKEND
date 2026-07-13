@@ -97,8 +97,8 @@ export const assignBatchTargets = async (req, res) => {
       templateId: a.templateId,
       platform: a.platform,
       metric: a.metric || "PostCount", // Defaulting metric as templates don't strictly define it right now
-      monthlyTarget: a.monthlyTarget,
-      weeklyTarget: a.weeklyTarget,
+      frequency: a.frequency,
+      targetGoal: a.targetGoal,
       startDate: new Date(),
       endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
     }));

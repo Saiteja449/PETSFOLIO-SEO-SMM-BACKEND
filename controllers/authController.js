@@ -46,22 +46,18 @@ const setupAdmin = async (req, res) => {
     // Check if any admin exists
     const adminExists = await User.findOne({ role: "manager" });
     if (adminExists) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Admin already exists. Setup disabled.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Admin already exists. Setup disabled.",
+      });
     }
 
     const { email, password, name } = req.body;
     if (!email || !password || !name) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Please provide email, password, and name",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Please provide email, password, and name",
+      });
     }
 
     const user = await User.create({

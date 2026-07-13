@@ -28,7 +28,7 @@ const recalculateSeoTargetProgress = async (employeeId, taskType) => {
       });
 
       target.currentValue = completedCount;
-      const goalValue = target.weeklyTarget || target.monthlyTarget || target.targetGoal || 0;
+      const goalValue = parseInt(target.targetGoal) || target.weeklyTarget || target.monthlyTarget || 0;
       if (target.currentValue >= goalValue) {
         target.status = 'Completed';
       } else {
