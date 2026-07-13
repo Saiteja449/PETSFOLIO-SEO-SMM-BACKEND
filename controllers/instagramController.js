@@ -3,6 +3,7 @@ import InstagramInsight from "../models/InstagramInsight.js";
 import InstagramPost from "../models/InstagramPost.js";
 import YoutubeAccount from "../models/YoutubeAccount.js";
 import axios from "axios";
+import { notifyAdminsOfApiError } from '../utils/notificationHelper.js';
 
 // @desc    Connect Instagram Account from FB Login OAuth redirect
 // @route   POST /api/instagram/connect
@@ -141,6 +142,7 @@ export const getCompanyInstagramInsights = async (req, res) => {
         }
       } catch (err) {
         console.warn("Instagram Graph API error fetching account info:", err.message);
+        await notifyAdminsOfApiError('Instagram/Meta API', err.message, companyId);
         totalFollowers = account.followersCount || 0;
       }
     } else {
@@ -168,6 +170,7 @@ export const getCompanyInstagramInsights = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching Instagram insights:", error.message);
+    await notifyAdminsOfApiError('Instagram API', error.message, req.params.companyId);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -207,6 +210,7 @@ export const getCompanyInstagramPosts = async (req, res) => {
       }
     } catch (err) {
       console.warn("Instagram Graph API error fetching media:", err.message);
+      await notifyAdminsOfApiError('Instagram API', err.message, companyId);
       // Fallback mock data
       postsData = [
         {
@@ -226,6 +230,7 @@ export const getCompanyInstagramPosts = async (req, res) => {
     res.status(200).json({ success: true, data: postsData });
   } catch (error) {
     console.error("Error fetching Instagram posts:", error.message);
+    await notifyAdminsOfApiError('Instagram API', error.message, req.params.companyId);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -259,6 +264,7 @@ export const getCompanyFacebookInsights = async (req, res) => {
       }
     } catch (err) {
       console.warn("Facebook Graph API error fetching followers:", err.message);
+      await notifyAdminsOfApiError('Facebook API', err.message, companyId);
     }
 
     const followersGained = Math.floor(totalFollowers * 0.05); // 5% mock gain
@@ -276,6 +282,7 @@ export const getCompanyFacebookInsights = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching Facebook insights:", error.message);
+    await notifyAdminsOfApiError('Facebook API', error.message, req.params.companyId);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -314,6 +321,7 @@ export const getCompanyFacebookPosts = async (req, res) => {
       }
     } catch (err) {
       console.warn("Facebook Graph API error fetching posts:", err.message);
+      await notifyAdminsOfApiError('Facebook API', err.message, companyId);
       // Fallback dummy
       postsData = [
         {
@@ -333,6 +341,7 @@ export const getCompanyFacebookPosts = async (req, res) => {
     res.status(200).json({ success: true, data: postsData });
   } catch (error) {
     console.error("Error fetching Facebook posts:", error.message);
+    await notifyAdminsOfApiError('Facebook API', error.message, req.params.companyId);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };

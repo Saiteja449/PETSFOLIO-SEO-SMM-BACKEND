@@ -2,6 +2,7 @@ import YoutubeAccount from "../models/YoutubeAccount.js";
 import YoutubeInsight from "../models/YoutubeInsight.js";
 import GoogleAccount from "../models/GoogleAccount.js";
 import { google } from "googleapis";
+import { notifyAdminsOfApiError } from '../utils/notificationHelper.js';
 
 // Global client kept for other methods if needed, but we should instantiate per request
 const oauth2Client = new google.auth.OAuth2(
@@ -276,6 +277,7 @@ export const getCompanyYoutubeInsights = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching YouTube insights:", error);
+    await notifyAdminsOfApiError('YouTube API', error.message, req.params.companyId);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -382,6 +384,7 @@ export const getCompanyYoutubePosts = async (req, res) => {
     res.status(200).json({ success: true, data: posts });
   } catch (error) {
     console.error("Error fetching Youtube posts:", error.message);
+    await notifyAdminsOfApiError('YouTube API', error.message, req.params.companyId);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };

@@ -28,11 +28,6 @@ const userSchema = new mongoose.Schema(
       enum: ["seo", "smm"],
       default: "seo",
     },
-    assignedCompanies: [
-      {
-        type: String,
-      },
-    ],
   },
   {
     timestamps: true,

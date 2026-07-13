@@ -11,7 +11,7 @@ import targetRoutes from './routes/targetRoutes.js';
 import smmTaskRoutes from './routes/smmTaskRoutes.js';
 import seoTaskRoutes from './routes/seoTaskRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
-import { setupAnalyticsPoller } from './jobs/analyticsPoller.js';
+import seoAnalyticsRoutes from './routes/seoAnalyticsRoutes.js';
 
 dotenv.config();
 
@@ -31,6 +31,7 @@ app.use('/api/targets', targetRoutes);
 app.use('/api/smm-tasks', smmTaskRoutes);
 app.use('/api/seo-tasks', seoTaskRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/seo-analytics', seoAnalyticsRoutes);
 
 // Test Route
 app.get('/', (req, res) => {
@@ -39,9 +40,6 @@ app.get('/', (req, res) => {
 
 // Connect to DB
 connectDB();
-
-// Initialize Cron Jobs
-setupAnalyticsPoller();
 
 // Only listen if running locally (not on Vercel)
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {

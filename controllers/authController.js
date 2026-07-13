@@ -86,8 +86,7 @@ const setupAdmin = async (req, res) => {
 // @route   POST /api/auth/employees
 // @access  Private/Admin
 const createEmployee = async (req, res) => {
-  const { name, email, role, department, assignedCompanies, password } =
-    req.body;
+  const { name, email, role, department, password } = req.body;
 
   try {
     const userExists = await User.findOne({ email });
@@ -106,7 +105,6 @@ const createEmployee = async (req, res) => {
       password: password || defaultPassword,
       role: role || "employee",
       department: department || "seo",
-      assignedCompanies: assignedCompanies || [],
     });
 
     // Don't send token for employee creation, just return success
@@ -117,7 +115,6 @@ const createEmployee = async (req, res) => {
       email: user.email,
       role: user.role,
       department: user.department,
-      assignedCompanies: user.assignedCompanies,
     });
   } catch (error) {
     console.error(error);

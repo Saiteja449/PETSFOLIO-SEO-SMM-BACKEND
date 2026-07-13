@@ -3,6 +3,7 @@ import TargetTemplate from '../models/TargetTemplate.js';
 import EmployeeTarget from '../models/EmployeeTarget.js';
 import Notification from '../models/Notification.js';
 import User from '../models/User.js';
+import Company from '../models/Company.js';
 
 // Helper to recalculate SMM target progress
 const recalculateSmmTargetProgress = async (employeeId, taskType) => {
@@ -48,7 +49,7 @@ export const getSmmTasks = async (req, res) => {
     const { companyId, employeeId, weekLabel } = req.query;
 
     const query = {};
-    if (companyId) query.companyId = companyId;
+    if (companyId && companyId !== 'all') query.companyId = companyId;
     // If employeeId is "all", we don't filter by it
     if (employeeId && employeeId !== 'all') query.employeeId = employeeId;
     // Let's assume we want tasks globally if weekLabel isn't strictly requested, 
@@ -87,14 +88,18 @@ export const createSmmTask = async (req, res) => {
     });
 
     if (employeeId) {
-      await Notification.create({
+      const company = await Company.findOne({ id: companyId });
+      const notificationData = {
         title: 'New SMM Task Assigned',
         message: `You have been assigned a new SMM task: ${title}`,
         category: 'task',
         severity: 'info',
         userId: employeeId,
-        companyId: companyId
-      });
+      };
+      if (company) {
+        notificationData.companyId = company._id;
+      }
+      await Notification.create(notificationData);
     }
 
     if (status === 'completed') {
@@ -142,14 +147,19 @@ export const updateSmmTask = async (req, res) => {
         if (emp) employeeName = emp.name;
       }
       
-      const notifications = managers.map(manager => ({
-        title: 'SMM Task Completed',
-        message: `${employeeName} completed the SMM task: ${updatedTask.title}`,
-        category: 'smm',
-        severity: 'success',
-        userId: manager._id,
-        companyId: updatedTask.companyId
-      }));
+      const company = await Company.findOne({ id: updatedTask.companyId });
+      
+      const notifications = managers.map(manager => {
+        const notif = {
+          title: 'SMM Task Completed',
+          message: `${employeeName} completed the SMM task: ${updatedTask.title}`,
+          category: 'smm',
+          severity: 'success',
+          userId: manager._id
+        };
+        if (company) notif.companyId = company._id;
+        return notif;
+      });
       
       if (notifications.length > 0) {
         await Notification.insertMany(notifications);

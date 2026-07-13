@@ -19,7 +19,14 @@ const companySchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-
+    ga4PropertyId: {
+      type: String,
+      default: "",
+    },
+    gscSiteUrl: {
+      type: String,
+      default: "",
+    },
     employeesCount: {
       type: Number,
       default: 0,

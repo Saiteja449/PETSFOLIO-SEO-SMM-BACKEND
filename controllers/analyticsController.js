@@ -2,6 +2,7 @@ import GoogleAccount from '../models/GoogleAccount.js';
 import GaProperty from '../models/GaProperty.js';
 import { google } from 'googleapis';
 import { BetaAnalyticsDataClient } from '@google-analytics/data';
+import { notifyAdminsOfApiError } from '../utils/notificationHelper.js';
 
 // Helper to get OAuth client with token
 const getOAuthClient = (account) => {
@@ -106,14 +107,18 @@ const fetchAnalyticsData = async (companyId, dateRange, dimensions, metrics) => 
     authClient: authClient
   });
 
-  const [response] = await analyticsDataClient.runReport({
-    property: `properties/${property.propertyId}`,
-    dateRanges: [dateRange || { startDate: '30daysAgo', endDate: 'today' }],
-    dimensions: dimensions.map(name => ({ name })),
-    metrics: metrics.map(name => ({ name }))
-  });
-
-  return response;
+  try {
+    const [response] = await analyticsDataClient.runReport({
+      property: `properties/${property.propertyId}`,
+      dateRanges: [dateRange || { startDate: '30daysAgo', endDate: 'today' }],
+      dimensions: dimensions.map(name => ({ name })),
+      metrics: metrics.map(name => ({ name }))
+    });
+    return response;
+  } catch (error) {
+    await notifyAdminsOfApiError('Google Analytics', error.message, companyId);
+    throw error;
+  }
 };
 
 // @desc    Get Analytics Overview
@@ -266,6 +271,7 @@ export const getRealtime = async (req, res) => {
     res.status(200).json({ success: true, data: response.rows });
   } catch (error) {
     console.error('Error fetching realtime:', error);
+    await notifyAdminsOfApiError('Google Analytics (Realtime)', error.message, req.query.companyId);
     res.status(500).json({ success: false, message: 'Error fetching realtime', error: error.message });
   }
 };

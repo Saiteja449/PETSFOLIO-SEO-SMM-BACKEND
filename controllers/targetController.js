@@ -159,6 +159,7 @@ export const getCompanyEmployeeTargets = async (req, res) => {
       .populate("templateId")
       .populate("seoTemplateId");
     const companyTargets = targets.filter((t) => {
+      if (req.params.companyId === "all") return true;
       if (t.targetType === "SEO" || t.seoTemplateId) {
         return true;
       }

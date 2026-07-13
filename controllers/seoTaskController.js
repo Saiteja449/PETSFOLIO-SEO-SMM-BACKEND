@@ -3,6 +3,7 @@ import SeoActivityTemplate from '../models/SeoActivityTemplate.js';
 import EmployeeTarget from '../models/EmployeeTarget.js';
 import Notification from '../models/Notification.js';
 import User from '../models/User.js';
+import Company from '../models/Company.js';
 
 // Helper to recalculate SEO target progress
 const recalculateSeoTargetProgress = async (employeeId, taskType) => {
@@ -50,7 +51,7 @@ export const getSeoTasks = async (req, res) => {
     const { companyId, employeeId, weekLabel } = req.query;
 
     const query = {};
-    if (companyId) query.companyId = companyId;
+    if (companyId && companyId !== 'all') query.companyId = companyId;
     if (employeeId && employeeId !== 'all') query.employeeId = employeeId;
     if (weekLabel) query.weekLabel = weekLabel;
 
@@ -88,14 +89,18 @@ export const createSeoTask = async (req, res) => {
     });
 
     if (employeeId) {
-      await Notification.create({
+      const company = await Company.findOne({ id: companyId });
+      const notificationData = {
         title: 'New SEO Task Assigned',
         message: `You have been assigned a new SEO task: ${title}`,
         category: 'task',
         severity: 'info',
         userId: employeeId,
-        companyId: companyId
-      });
+      };
+      if (company) {
+        notificationData.companyId = company._id;
+      }
+      await Notification.create(notificationData);
     }
 
     if (status === 'completed' && employeeId) {
@@ -140,14 +145,19 @@ export const updateSeoTask = async (req, res) => {
       const managers = await User.find({ role: 'manager' });
       const employeeName = updatedTask.assignedTo || 'An employee';
       
-      const notifications = managers.map(manager => ({
-        title: 'SEO Task Completed',
-        message: `${employeeName} completed the SEO task: ${updatedTask.title}`,
-        category: 'seo',
-        severity: 'success',
-        userId: manager._id,
-        companyId: updatedTask.companyId
-      }));
+      const company = await Company.findOne({ id: updatedTask.companyId });
+      
+      const notifications = managers.map(manager => {
+        const notif = {
+          title: 'SEO Task Completed',
+          message: `${employeeName} completed the SEO task: ${updatedTask.title}`,
+          category: 'seo',
+          severity: 'success',
+          userId: manager._id
+        };
+        if (company) notif.companyId = company._id;
+        return notif;
+      });
       
       if (notifications.length > 0) {
         await Notification.insertMany(notifications);
