@@ -17,6 +17,10 @@ const loginUser = async (req, res) => {
     const user = await User.findOne({ email });
 
     if (user && (await user.matchPassword(password))) {
+      const token = generateToken(user._id);
+      user.currentToken = token;
+      await user.save();
+
       res.json({
         success: true,
         _id: user._id,
@@ -25,13 +29,29 @@ const loginUser = async (req, res) => {
         role: user.role,
         department: user.department,
         assignedCompanies: user.assignedCompanies,
-        token: generateToken(user._id),
+        token,
       });
     } else {
       res
         .status(401)
         .json({ success: false, message: "Invalid email or password" });
     }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// @desc    Logout user & clear active session token
+// @route   POST /api/auth/logout
+// @access  Private
+const logoutUser = async (req, res) => {
+  try {
+    if (req.user) {
+      req.user.currentToken = null;
+      await req.user.save();
+    }
+    res.json({ success: true, message: "Logged out successfully" });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Server error" });
@@ -60,7 +80,7 @@ const setupAdmin = async (req, res) => {
       });
     }
 
-    const user = await User.create({
+    const user = new User({
       name,
       email,
       password,
@@ -68,13 +88,17 @@ const setupAdmin = async (req, res) => {
       department: "marketing",
     });
 
+    const jwtToken = generateToken(user._id);
+    user.currentToken = jwtToken;
+    await user.save();
+
     res.status(201).json({
       success: true,
       _id: user._id,
       name: user.name,
       email: user.email,
       role: user.role,
-      token: generateToken(user._id),
+      token: jwtToken,
     });
   } catch (error) {
     console.error(error);
@@ -177,6 +201,7 @@ const updateEmployeePassword = async (req, res) => {
 
 export {
   loginUser,
+  logoutUser,
   setupAdmin,
   createEmployee,
   getEmployees,
