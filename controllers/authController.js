@@ -85,7 +85,7 @@ const setupAdmin = async (req, res) => {
       email,
       password,
       role: "manager",
-      department: "marketing",
+      department: "seo",
     });
 
     const jwtToken = generateToken(user._id);
