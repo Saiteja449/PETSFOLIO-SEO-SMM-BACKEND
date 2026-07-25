@@ -7,15 +7,6 @@ export const notifyAdminsOfApiError = async (apiName, errorMessage, companyId = 
     const managers = await User.find({ role: 'manager' });
     if (!managers || managers.length === 0) return;
 
-    // To prevent spamming, we could check if a similar recent notification exists,
-    // but for now we'll just insert it.
-    
-    // Ensure error message is a string and truncate if too long
-    let safeMessage = typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage);
-    if (safeMessage.length > 200) {
-      safeMessage = safeMessage.substring(0, 197) + '...';
-    }
-
     let companyObjectId = null;
     if (companyId) {
       const company = await Company.findOne({ id: companyId });
@@ -24,9 +15,34 @@ export const notifyAdminsOfApiError = async (apiName, errorMessage, companyId = 
       }
     }
 
+    const title = `${apiName} Connection Error`;
+
+    // Check if a similar notification was created in the last 24 hours
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const query = {
+      title,
+      createdAt: { $gte: twentyFourHoursAgo }
+    };
+    if (companyObjectId) {
+      query.companyId = companyObjectId;
+    }
+
+    const recentNotification = await Notification.findOne(query);
+
+    if (recentNotification) {
+      // Notification already exists within the last 24 hours, don't spam
+      return;
+    }
+
+    // Ensure error message is a string and truncate if too long
+    let safeMessage = typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage);
+    if (safeMessage.length > 200) {
+      safeMessage = safeMessage.substring(0, 197) + '...';
+    }
+
     const notifications = managers.map((manager) => {
       const notif = {
-        title: `${apiName} Connection Error`,
+        title,
         message: `Error connecting to ${apiName}: ${safeMessage}`,
         category: 'system',
         severity: 'danger',
