@@ -29,11 +29,12 @@ const generateBatchTasks = async (employeeId, companyId, assignments, type) => {
       let dates = [];
       
       if (a.frequency === "Daily") {
+        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
         const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        const daysLeft = endOfMonth.getDate() - today.getDate() + 1;
+        const totalDaysInMonth = endOfMonth.getDate();
         
-        for (let i = 0; i < daysLeft; i++) {
-          const d = new Date(today);
+        for (let i = 0; i < totalDaysInMonth; i++) {
+          const d = new Date(startOfMonth);
           d.setDate(d.getDate() + i);
           for (let k = 0; k < targetGoal; k++) {
             dates.push(new Date(d));
@@ -50,10 +51,8 @@ const generateBatchTasks = async (employeeId, companyId, assignments, type) => {
           for (let i = 0; i < 7; i++) {
              const d = new Date(startDateOfWeek);
              d.setDate(d.getDate() + i);
-             if (d >= today) {
-               const count = base + (i < rem ? 1 : 0);
-               for(let k=0; k<count; k++) dates.push(new Date(d));
-             }
+             const count = base + (i < rem ? 1 : 0);
+             for(let k=0; k<count; k++) dates.push(new Date(d));
           }
         } else {
           const step = 7 / targetGoal;
@@ -61,9 +60,7 @@ const generateBatchTasks = async (employeeId, companyId, assignments, type) => {
             const offset = Math.floor(i * step);
             const d = new Date(startDateOfWeek);
             d.setDate(d.getDate() + offset);
-            if (d >= today) {
-              dates.push(new Date(d));
-            }
+            dates.push(new Date(d));
           }
         }
       } else if (a.frequency === "Monthly") {
@@ -77,10 +74,8 @@ const generateBatchTasks = async (employeeId, companyId, assignments, type) => {
           for (let i = 0; i < totalDaysInMonth; i++) {
              const d = new Date(startOfMonth);
              d.setDate(d.getDate() + i);
-             if (d >= today) {
-               const count = base + (i < rem ? 1 : 0);
-               for(let k=0; k<count; k++) dates.push(new Date(d));
-             }
+             const count = base + (i < rem ? 1 : 0);
+             for(let k=0; k<count; k++) dates.push(new Date(d));
           }
         } else {
           const step = totalDaysInMonth / targetGoal;
@@ -88,9 +83,7 @@ const generateBatchTasks = async (employeeId, companyId, assignments, type) => {
             const offset = Math.floor(i * step);
             const d = new Date(startOfMonth);
             d.setDate(d.getDate() + offset);
-            if (d >= today) {
-              dates.push(new Date(d));
-            }
+            dates.push(new Date(d));
           }
         }
       }
