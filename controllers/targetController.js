@@ -20,61 +20,110 @@ const generateBatchTasks = async (employeeId, companyId, assignments, type) => {
     
     const tasksToInsert = [];
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
     for (const a of assignments) {
       if (!a.frequency) continue;
       const targetGoal = parseInt(a.targetGoal) || 1;
       
       let dates = [];
+      
       if (a.frequency === "Daily") {
-        for (let i = 0; i < 30; i++) {
+        const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        const daysLeft = endOfMonth.getDate() - today.getDate() + 1;
+        
+        for (let i = 0; i < daysLeft; i++) {
           const d = new Date(today);
           d.setDate(d.getDate() + i);
-          dates.push(d);
+          for (let k = 0; k < targetGoal; k++) {
+            dates.push(new Date(d));
+          }
         }
       } else if (a.frequency === "Weekly") {
-        for (let i = 1; i <= 4; i++) {
-          const d = new Date(today);
-          d.setDate(d.getDate() + (i * 7));
-          dates.push(d);
+        const dayOfWeek = today.getDay() || 7; 
+        const daysLeftInWeek = 7 - dayOfWeek + 1; 
+        
+        if (targetGoal >= daysLeftInWeek) {
+          const base = Math.floor(targetGoal / daysLeftInWeek);
+          let rem = targetGoal % daysLeftInWeek;
+          for (let i = 0; i < daysLeftInWeek; i++) {
+             const d = new Date(today);
+             d.setDate(d.getDate() + i);
+             const count = base + (i < rem ? 1 : 0);
+             for(let k=0; k<count; k++) dates.push(new Date(d));
+          }
+        } else {
+          const step = daysLeftInWeek / targetGoal;
+          for (let i = 0; i < targetGoal; i++) {
+            const offset = Math.floor(i * step);
+            const d = new Date(today);
+            d.setDate(d.getDate() + offset);
+            dates.push(new Date(d));
+          }
         }
       } else if (a.frequency === "Monthly") {
-        const d = new Date(today);
-        d.setDate(d.getDate() + 30);
-        dates.push(d);
+        const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        const daysLeft = endOfMonth.getDate() - today.getDate() + 1;
+        
+        if (targetGoal >= daysLeft) {
+          const base = Math.floor(targetGoal / daysLeft);
+          let rem = targetGoal % daysLeft;
+          for (let i = 0; i < daysLeft; i++) {
+             const d = new Date(today);
+             d.setDate(d.getDate() + i);
+             const count = base + (i < rem ? 1 : 0);
+             for(let k=0; k<count; k++) dates.push(new Date(d));
+          }
+        } else {
+          const step = daysLeft / targetGoal;
+          for (let i = 0; i < targetGoal; i++) {
+            const offset = Math.floor(i * step);
+            const d = new Date(today);
+            d.setDate(d.getDate() + offset);
+            dates.push(new Date(d));
+          }
+        }
+      }
+
+      let templateName = 'Task';
+      let templateType = 'Post';
+      if (type === "SMM") {
+        const template = await TargetTemplate.findById(a.templateId);
+        templateName = template?.name || 'SMM Task';
+        templateType = template?.name || 'Reel Post';
+      } else {
+        const template = await SeoActivityTemplate.findById(a.seoTemplateId);
+        templateName = template?.activityName || 'SEO Task';
+        templateType = template?.activityName || 'Blog Post';
       }
       
       for (const d of dates) {
-         for (let k = 0; k < targetGoal; k++) {
-           if (type === "SMM") {
-             const template = await TargetTemplate.findById(a.templateId);
-             tasksToInsert.push({
-               title: `${a.frequency} Target: ${template?.name || 'SMM Task'}`,
-               type: template?.name || 'Reel Post',
-               platform: a.platform || 'Both',
-               status: 'notstarted',
-               employeeId,
-               companyId,
-               weekLabel: `Week ${Math.ceil(d.getDate() / 7)}`,
-               date: d.toISOString().split('T')[0],
-               dueDate: d,
-               isAutomated: true,
-             });
-           } else {
-             const template = await SeoActivityTemplate.findById(a.seoTemplateId);
-             tasksToInsert.push({
-               title: `${a.frequency} Target: ${template?.activityName || 'SEO Task'}`,
-               type: template?.activityName || 'Blog Post',
-               status: 'notstarted',
-               assignedTo: user.email,
-               employeeId,
-               companyId,
-               weekLabel: `Week ${Math.ceil(d.getDate() / 7)}`,
-               date: d.toISOString().split('T')[0],
-               dueDate: d,
-               isAutomated: true,
-             });
-           }
+         if (type === "SMM") {
+           tasksToInsert.push({
+             title: `${a.frequency} Target: ${templateName}`,
+             type: templateType,
+             platform: a.platform || 'Both',
+             status: 'notstarted',
+             employeeId,
+             companyId,
+             weekLabel: `Week ${Math.ceil(d.getDate() / 7)}`,
+             date: d.toISOString().split('T')[0],
+             dueDate: d,
+             isAutomated: true,
+           });
+         } else {
+           tasksToInsert.push({
+             title: `${a.frequency} Target: ${templateName}`,
+             type: templateType,
+             status: 'notstarted',
+             assignedTo: user.email,
+             employeeId,
+             companyId,
+             weekLabel: `Week ${Math.ceil(d.getDate() / 7)}`,
+             date: d.toISOString().split('T')[0],
+             dueDate: d,
+             isAutomated: true,
+           });
          }
       }
     }
