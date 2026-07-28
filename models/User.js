@@ -24,9 +24,13 @@ const userSchema = new mongoose.Schema(
       default: "employee",
     },
     department: {
-      type: String,
+      type: [String],
       enum: ["seo", "smm"],
-      default: "seo",
+      default: ["seo"],
+    },
+    assignedCompanies: {
+      type: [String],
+      default: [],
     },
     currentToken: {
       type: String,

@@ -7,7 +7,8 @@ import {
   getEmployees,
   deleteEmployee,
   updateEmployeePassword,
-  changePassword
+  changePassword,
+  updateEmployee
 } from '../controllers/authController.js';
 import { protect, admin } from '../middleware/authMiddleware.js';
 
@@ -23,6 +24,7 @@ router.route('/employees')
   .get(protect, admin, getEmployees);
 
 router.route('/employees/:id')
+  .put(protect, admin, updateEmployee)
   .delete(protect, admin, deleteEmployee);
 
 router.route('/employees/:id/password')

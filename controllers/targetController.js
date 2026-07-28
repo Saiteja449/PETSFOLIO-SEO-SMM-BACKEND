@@ -99,6 +99,7 @@ export const assignBatchTargets = async (req, res) => {
       metric: a.metric || "PostCount", // Defaulting metric as templates don't strictly define it right now
       frequency: a.frequency,
       targetGoal: a.targetGoal,
+      expected: a.expected,
       startDate: new Date(),
       endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
     }));
@@ -126,6 +127,7 @@ export const assignSeoBatchTargets = async (req, res) => {
       targetType: "SEO",
       frequency: a.frequency,
       targetGoal: a.targetGoal,
+      expected: a.expected,
       startDate: new Date(),
       endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
     }));

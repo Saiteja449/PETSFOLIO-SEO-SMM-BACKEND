@@ -85,7 +85,7 @@ const setupAdmin = async (req, res) => {
       email,
       password,
       role: "manager",
-      department: "seo",
+      department: ["seo"],
     });
 
     const jwtToken = generateToken(user._id);
@@ -110,7 +110,7 @@ const setupAdmin = async (req, res) => {
 // @route   POST /api/auth/employees
 // @access  Private/Admin
 const createEmployee = async (req, res) => {
-  const { name, email, role, department, password } = req.body;
+  const { name, email, role, department, password, assignedCompanies } = req.body;
 
   try {
     const userExists = await User.findOne({ email });
@@ -128,7 +128,8 @@ const createEmployee = async (req, res) => {
       email,
       password: password || defaultPassword,
       role: role || "employee",
-      department: department || "seo",
+      department: department || ["seo"],
+      assignedCompanies: assignedCompanies || [],
     });
 
     // Don't send token for employee creation, just return success
@@ -139,6 +140,7 @@ const createEmployee = async (req, res) => {
       email: user.email,
       role: user.role,
       department: user.department,
+      assignedCompanies: user.assignedCompanies,
     });
   } catch (error) {
     console.error(error);
@@ -234,6 +236,48 @@ const changePassword = async (req, res) => {
   }
 };
 
+// @desc    Update employee profile
+// @route   PUT /api/auth/employees/:id
+// @access  Private/Admin
+const updateEmployee = async (req, res) => {
+  const { name, email, role, department, assignedCompanies } = req.body;
+
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    if (name) user.name = name;
+    if (email) {
+      const emailExists = await User.findOne({ email, _id: { $ne: user._id } });
+      if (emailExists) {
+        return res.status(400).json({ success: false, message: "Email already in use" });
+      }
+      user.email = email;
+    }
+    if (role) user.role = role;
+    if (department) user.department = department;
+    if (assignedCompanies) user.assignedCompanies = assignedCompanies;
+
+    const updatedUser = await user.save();
+
+    res.json({
+      success: true,
+      _id: updatedUser._id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      role: updatedUser.role,
+      department: updatedUser.department,
+      assignedCompanies: updatedUser.assignedCompanies,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 export {
   loginUser,
   logoutUser,
@@ -243,4 +287,5 @@ export {
   deleteEmployee,
   updateEmployeePassword,
   changePassword,
+  updateEmployee,
 };
