@@ -51,6 +51,20 @@ export const deleteTargetTemplate = async (req, res) => {
   }
 };
 
+export const updateTargetTemplate = async (req, res) => {
+  try {
+    const { name, description, metric, defaultGoalValue } = req.body;
+    const template = await TargetTemplate.findByIdAndUpdate(
+      req.params.id,
+      { name, description, metric, defaultGoalValue },
+      { new: true }
+    );
+    res.status(200).json({ success: true, data: template });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export const assignTarget = async (req, res) => {
   try {
     const {
@@ -87,13 +101,14 @@ export const assignTarget = async (req, res) => {
 
 export const assignBatchTargets = async (req, res) => {
   try {
-    const { employeeId, managerId, assignments } = req.body;
+    const { employeeId, managerId, companyId, assignments } = req.body;
     
-    await EmployeeTarget.deleteMany({ employeeId, templateId: { $exists: true } });
+    await EmployeeTarget.deleteMany({ employeeId, companyId, templateId: { $exists: true } });
 
     const newTargets = assignments.map(a => ({
       employeeId,
       managerId,
+      companyId,
       templateId: a.templateId,
       platform: a.platform,
       metric: a.metric || "PostCount", // Defaulting metric as templates don't strictly define it right now
@@ -116,13 +131,14 @@ export const assignBatchTargets = async (req, res) => {
 
 export const assignSeoBatchTargets = async (req, res) => {
   try {
-    const { employeeId, managerId, assignments } = req.body;
+    const { employeeId, managerId, companyId, assignments } = req.body;
     
-    await EmployeeTarget.deleteMany({ employeeId, seoTemplateId: { $exists: true } });
+    await EmployeeTarget.deleteMany({ employeeId, companyId, seoTemplateId: { $exists: true } });
 
     const newTargets = assignments.map(a => ({
       employeeId,
       managerId,
+      companyId,
       seoTemplateId: a.seoTemplateId,
       targetType: "SEO",
       frequency: a.frequency,
@@ -144,9 +160,11 @@ export const assignSeoBatchTargets = async (req, res) => {
 
 export const getEmployeeTargets = async (req, res) => {
   try {
-    const targets = await EmployeeTarget.find({
-      employeeId: req.params.employeeId,
-    })
+    const query = { employeeId: req.params.employeeId };
+    if (req.query.companyId) {
+      query.companyId = req.query.companyId;
+    }
+    const targets = await EmployeeTarget.find(query)
       .populate("templateId")
       .populate("seoTemplateId");
     res.status(200).json({ success: true, data: targets });
@@ -162,14 +180,7 @@ export const getCompanyEmployeeTargets = async (req, res) => {
       .populate("seoTemplateId");
     const companyTargets = targets.filter((t) => {
       if (req.params.companyId === "all") return true;
-      if (t.targetType === "SEO" || t.seoTemplateId) {
-        return true;
-      }
-      return (
-        t.templateId &&
-        (t.templateId.companyId?.toString() === req.params.companyId ||
-          !t.templateId.companyId)
-      );
+      return t.companyId === req.params.companyId || !t.companyId;
     });
     res.status(200).json({ success: true, data: companyTargets });
   } catch (error) {
@@ -228,7 +239,21 @@ export const getSeoActivityTemplates = async (req, res) => {
 export const deleteSeoActivityTemplate = async (req, res) => {
   try {
     await SeoActivityTemplate.findByIdAndDelete(req.params.id);
-    res.status(200).json({ success: true, message: "SEO Template deleted" });
+    res.status(200).json({ success: true, message: "Template deleted" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const updateSeoActivityTemplate = async (req, res) => {
+  try {
+    const { activityName, category } = req.body;
+    const template = await SeoActivityTemplate.findByIdAndUpdate(
+      req.params.id,
+      { activityName, category },
+      { new: true }
+    );
+    res.status(200).json({ success: true, data: template });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

@@ -12,6 +12,10 @@ const EmployeeTargetSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    companyId: {
+      type: String,
+      required: false,
+    },
     templateId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "TargetTemplate",

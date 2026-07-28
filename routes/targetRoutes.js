@@ -4,6 +4,7 @@ import {
   getTargetTemplates,
   getGlobalTargetTemplates,
   deleteTargetTemplate,
+  updateTargetTemplate,
   assignTarget,
   assignBatchTargets,
   getEmployeeTargets,
@@ -13,6 +14,7 @@ import {
   createSeoActivityTemplate,
   getSeoActivityTemplates,
   deleteSeoActivityTemplate,
+  updateSeoActivityTemplate,
   assignSeoBatchTargets,
 } from "../controllers/targetController.js";
 
@@ -22,11 +24,13 @@ router.post("/templates", createTargetTemplate);
 router.get("/templates/global", getGlobalTargetTemplates);
 router.get("/templates/:companyId", getTargetTemplates);
 router.delete("/templates/:id", deleteTargetTemplate);
+router.put("/templates/:id", updateTargetTemplate);
 
 // SEO Templates
 router.post("/seo-templates", createSeoActivityTemplate);
 router.get("/seo-templates/global", getSeoActivityTemplates);
 router.delete("/seo-templates/:id", deleteSeoActivityTemplate);
+router.put("/seo-templates/:id", updateSeoActivityTemplate);
 router.post("/seo-assign-batch", assignSeoBatchTargets);
 
 router.post("/assign", assignTarget);
