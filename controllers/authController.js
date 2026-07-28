@@ -199,6 +199,41 @@ const updateEmployeePassword = async (req, res) => {
   }
 };
 
+// @desc    Change current user's password
+// @route   PUT /api/auth/change-password
+// @access  Private
+const changePassword = async (req, res) => {
+  const { newPassword, confirmPassword } = req.body;
+
+  if (!newPassword || !confirmPassword) {
+    return res.status(400).json({
+      success: false,
+      message: "Please provide both new password and confirmation password",
+    });
+  }
+
+  if (newPassword !== confirmPassword) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Passwords do not match" });
+  }
+
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (user) {
+      user.password = newPassword;
+      await user.save();
+      res.json({ success: true, message: "Password updated successfully" });
+    } else {
+      res.status(404).json({ success: false, message: "User not found" });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 export {
   loginUser,
   logoutUser,
@@ -207,4 +242,5 @@ export {
   getEmployees,
   deleteEmployee,
   updateEmployeePassword,
+  changePassword,
 };

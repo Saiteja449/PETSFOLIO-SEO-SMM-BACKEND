@@ -6,7 +6,8 @@ import {
   createEmployee,
   getEmployees,
   deleteEmployee,
-  updateEmployeePassword
+  updateEmployeePassword,
+  changePassword
 } from '../controllers/authController.js';
 import { protect, admin } from '../middleware/authMiddleware.js';
 
@@ -15,6 +16,7 @@ const router = express.Router();
 router.post('/login', loginUser);
 router.post('/logout', protect, logoutUser);
 router.post('/setup-admin', setupAdmin);
+router.put('/change-password', protect, changePassword);
 
 router.route('/employees')
   .post(protect, admin, createEmployee)
