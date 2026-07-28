@@ -41,46 +41,56 @@ const generateBatchTasks = async (employeeId, companyId, assignments, type) => {
         }
       } else if (a.frequency === "Weekly") {
         const dayOfWeek = today.getDay() || 7; 
-        const daysLeftInWeek = 7 - dayOfWeek + 1; 
+        const startDateOfWeek = new Date(today);
+        startDateOfWeek.setDate(today.getDate() - dayOfWeek + 1); // Monday of this week
         
-        if (targetGoal >= daysLeftInWeek) {
-          const base = Math.floor(targetGoal / daysLeftInWeek);
-          let rem = targetGoal % daysLeftInWeek;
-          for (let i = 0; i < daysLeftInWeek; i++) {
-             const d = new Date(today);
+        if (targetGoal >= 7) {
+          const base = Math.floor(targetGoal / 7);
+          let rem = targetGoal % 7;
+          for (let i = 0; i < 7; i++) {
+             const d = new Date(startDateOfWeek);
              d.setDate(d.getDate() + i);
-             const count = base + (i < rem ? 1 : 0);
-             for(let k=0; k<count; k++) dates.push(new Date(d));
+             if (d >= today) {
+               const count = base + (i < rem ? 1 : 0);
+               for(let k=0; k<count; k++) dates.push(new Date(d));
+             }
           }
         } else {
-          const step = daysLeftInWeek / targetGoal;
+          const step = 7 / targetGoal;
           for (let i = 0; i < targetGoal; i++) {
             const offset = Math.floor(i * step);
-            const d = new Date(today);
+            const d = new Date(startDateOfWeek);
             d.setDate(d.getDate() + offset);
-            dates.push(new Date(d));
+            if (d >= today) {
+              dates.push(new Date(d));
+            }
           }
         }
       } else if (a.frequency === "Monthly") {
+        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
         const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        const daysLeft = endOfMonth.getDate() - today.getDate() + 1;
+        const totalDaysInMonth = endOfMonth.getDate();
         
-        if (targetGoal >= daysLeft) {
-          const base = Math.floor(targetGoal / daysLeft);
-          let rem = targetGoal % daysLeft;
-          for (let i = 0; i < daysLeft; i++) {
-             const d = new Date(today);
+        if (targetGoal >= totalDaysInMonth) {
+          const base = Math.floor(targetGoal / totalDaysInMonth);
+          let rem = targetGoal % totalDaysInMonth;
+          for (let i = 0; i < totalDaysInMonth; i++) {
+             const d = new Date(startOfMonth);
              d.setDate(d.getDate() + i);
-             const count = base + (i < rem ? 1 : 0);
-             for(let k=0; k<count; k++) dates.push(new Date(d));
+             if (d >= today) {
+               const count = base + (i < rem ? 1 : 0);
+               for(let k=0; k<count; k++) dates.push(new Date(d));
+             }
           }
         } else {
-          const step = daysLeft / targetGoal;
+          const step = totalDaysInMonth / targetGoal;
           for (let i = 0; i < targetGoal; i++) {
             const offset = Math.floor(i * step);
-            const d = new Date(today);
+            const d = new Date(startOfMonth);
             d.setDate(d.getDate() + offset);
-            dates.push(new Date(d));
+            if (d >= today) {
+              dates.push(new Date(d));
+            }
           }
         }
       }
