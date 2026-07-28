@@ -2,6 +2,91 @@ import TargetTemplate from "../models/TargetTemplate.js";
 import EmployeeTarget from "../models/EmployeeTarget.js";
 import TrackedVideo from "../models/TrackedVideo.js";
 import SeoActivityTemplate from "../models/SeoActivityTemplate.js";
+import User from "../models/User.js";
+import SmmTask from "../models/SmmTask.js";
+import SeoTask from "../models/SeoTask.js";
+
+const generateBatchTasks = async (employeeId, companyId, assignments, type) => {
+  try {
+    const user = await User.findById(employeeId);
+    if (!user) return;
+    
+    // Clear previously automated tasks for these templates
+    if (type === "SMM") {
+       await SmmTask.deleteMany({ employeeId, companyId, isAutomated: true, status: 'notstarted' });
+    } else {
+       await SeoTask.deleteMany({ companyId, assignedTo: user.email, isAutomated: true, status: 'notstarted' });
+    }
+    
+    const tasksToInsert = [];
+    const today = new Date();
+    
+    for (const a of assignments) {
+      if (!a.frequency) continue;
+      const targetGoal = parseInt(a.targetGoal) || 1;
+      
+      let dates = [];
+      if (a.frequency === "Daily") {
+        for (let i = 0; i < 30; i++) {
+          const d = new Date(today);
+          d.setDate(d.getDate() + i);
+          dates.push(d);
+        }
+      } else if (a.frequency === "Weekly") {
+        for (let i = 1; i <= 4; i++) {
+          const d = new Date(today);
+          d.setDate(d.getDate() + (i * 7));
+          dates.push(d);
+        }
+      } else if (a.frequency === "Monthly") {
+        const d = new Date(today);
+        d.setDate(d.getDate() + 30);
+        dates.push(d);
+      }
+      
+      for (const d of dates) {
+         for (let k = 0; k < targetGoal; k++) {
+           if (type === "SMM") {
+             const template = await TargetTemplate.findById(a.templateId);
+             tasksToInsert.push({
+               title: `${a.frequency} Target: ${template?.name || 'SMM Task'}`,
+               type: template?.name || 'Reel Post',
+               platform: a.platform || 'Both',
+               status: 'notstarted',
+               employeeId,
+               companyId,
+               weekLabel: `Week ${Math.ceil(d.getDate() / 7)}`,
+               date: d.toISOString().split('T')[0],
+               dueDate: d,
+               isAutomated: true,
+             });
+           } else {
+             const template = await SeoActivityTemplate.findById(a.seoTemplateId);
+             tasksToInsert.push({
+               title: `${a.frequency} Target: ${template?.activityName || 'SEO Task'}`,
+               type: template?.activityName || 'Blog Post',
+               status: 'notstarted',
+               assignedTo: user.email,
+               employeeId,
+               companyId,
+               weekLabel: `Week ${Math.ceil(d.getDate() / 7)}`,
+               date: d.toISOString().split('T')[0],
+               dueDate: d,
+               isAutomated: true,
+             });
+           }
+         }
+      }
+    }
+    
+    if (tasksToInsert.length > 0) {
+      if (type === "SMM") await SmmTask.insertMany(tasksToInsert);
+      else await SeoTask.insertMany(tasksToInsert);
+    }
+  } catch (err) {
+    console.error("Error generating tasks:", err);
+  }
+};
 
 export const createTargetTemplate = async (req, res) => {
   try {
@@ -121,6 +206,7 @@ export const assignBatchTargets = async (req, res) => {
 
     if (newTargets.length > 0) {
       await EmployeeTarget.insertMany(newTargets);
+      await generateBatchTasks(employeeId, companyId, assignments, "SMM");
     }
 
     res.status(201).json({ success: true, message: "Batch assignments saved" });
@@ -150,6 +236,7 @@ export const assignSeoBatchTargets = async (req, res) => {
 
     if (newTargets.length > 0) {
       await EmployeeTarget.insertMany(newTargets);
+      await generateBatchTasks(employeeId, companyId, assignments, "SEO");
     }
 
     res.status(201).json({ success: true, message: "SEO Batch assignments saved" });

@@ -48,6 +48,13 @@ const smmTaskSchema = new mongoose.Schema(
       type: String,
       default: 'Today',
     },
+    dueDate: {
+      type: Date,
+    },
+    isAutomated: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
