@@ -11,6 +11,9 @@ const SeoActivityTemplateSchema = new mongoose.Schema(
       default: "SEO",
       required: true,
     },
+    description: {
+      type: String,
+    },
     isFixed: {
       type: Boolean,
       default: false,
