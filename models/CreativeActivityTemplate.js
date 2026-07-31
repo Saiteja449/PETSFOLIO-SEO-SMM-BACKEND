@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const SeoActivityTemplateSchema = new mongoose.Schema(
+const CreativeActivityTemplateSchema = new mongoose.Schema(
   {
     activityName: {
       type: String,
@@ -8,7 +8,7 @@ const SeoActivityTemplateSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      default: "SEO",
+      default: "Creative",
       required: true,
     },
     description: {
@@ -22,5 +22,5 @@ const SeoActivityTemplateSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-const SeoActivityTemplate = mongoose.model("SeoActivityTemplate", SeoActivityTemplateSchema);
-export default SeoActivityTemplate;
+const CreativeActivityTemplate = mongoose.model("CreativeActivityTemplate", CreativeActivityTemplateSchema);
+export default CreativeActivityTemplate;

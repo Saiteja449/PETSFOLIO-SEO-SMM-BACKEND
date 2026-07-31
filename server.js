@@ -10,8 +10,12 @@ import companyRoutes from './routes/companyRoutes.js';
 import targetRoutes from './routes/targetRoutes.js';
 import smmTaskRoutes from './routes/smmTaskRoutes.js';
 import seoTaskRoutes from './routes/seoTaskRoutes.js';
+import contentTaskRoutes from './routes/contentTaskRoutes.js';
+import salesTaskRoutes from './routes/salesTaskRoutes.js';
+import creativeTaskRoutes from './routes/creativeTaskRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import seoAnalyticsRoutes from './routes/seoAnalyticsRoutes.js';
+import holidayRoutes from './routes/holidayRoutes.js';
 
 dotenv.config();
 
@@ -30,8 +34,12 @@ app.use('/api/companies', companyRoutes);
 app.use('/api/targets', targetRoutes);
 app.use('/api/smm-tasks', smmTaskRoutes);
 app.use('/api/seo-tasks', seoTaskRoutes);
+app.use('/api/content-tasks', contentTaskRoutes);
+app.use('/api/sales-tasks', salesTaskRoutes);
+app.use('/api/creative-tasks', creativeTaskRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/seo-analytics', seoAnalyticsRoutes);
+app.use('/api/holidays', holidayRoutes);
 
 // Test Route
 app.get('/', (req, res) => {

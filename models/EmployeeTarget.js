@@ -24,9 +24,21 @@ const EmployeeTargetSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "SeoActivityTemplate",
     },
+    contentTemplateId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ContentActivityTemplate",
+    },
+    salesTemplateId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SalesActivityTemplate",
+    },
+    creativeTemplateId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "CreativeActivityTemplate",
+    },
     targetType: {
       type: String,
-      enum: ["SMM", "SEO"],
+      enum: ["SMM", "SEO", "Content", "Sales", "Creative"],
       default: "SMM",
     },
     customName: {

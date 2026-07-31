@@ -1,31 +1,32 @@
-import SmmTask from '../models/SmmTask.js';
-import TargetTemplate from '../models/TargetTemplate.js';
+import CreativeTask from '../models/CreativeTask.js';
+import CreativeActivityTemplate from '../models/CreativeActivityTemplate.js';
 import EmployeeTarget from '../models/EmployeeTarget.js';
 import Notification from '../models/Notification.js';
 import User from '../models/User.js';
 import Company from '../models/Company.js';
 
-// Helper to recalculate SMM target progress
-const recalculateSmmTargetProgress = async (employeeId, taskType) => {
+// Helper to recalculate CreativeTask target progress
+const recalculateSeoTargetProgress = async (employeeId, taskType) => {
+  if (!employeeId) return;
   try {
-    const template = await TargetTemplate.findOne({ name: taskType });
+    const template = await CreativeActivityTemplate.findOne({ activityName: taskType });
     if (!template) return;
 
     // Get all targets for this employee and template
     const targets = await EmployeeTarget.find({
       employeeId,
-      templateId: template._id,
+      seoTemplateId: template._id,
+      targetType: 'CreativeTask',
     });
 
     for (const target of targets) {
-      // Count completed SmmTasks for this employee & type within the target's start and end dates
-      const completedTasks = await SmmTask.find({
+      // Count completed CreativeTasks for this employee & type within the target's start and end dates
+      const completedCount = await CreativeTask.countDocuments({
         employeeId,
         type: taskType,
         status: 'completed',
         createdAt: { $gte: target.startDate, $lte: target.endDate }
       });
-      const completedCount = completedTasks.reduce((acc, t) => acc + (t.completedQuantity || 1), 0);
 
       target.currentValue = completedCount;
       const goalValue = parseInt(target.targetGoal) || target.weeklyTarget || target.monthlyTarget || 0;
@@ -35,54 +36,53 @@ const recalculateSmmTargetProgress = async (employeeId, taskType) => {
         target.status = 'In Progress';
       }
       await target.save();
-      console.log(`Recalculated target ${target._id}: currentValue=${target.currentValue}, status=${target.status}`);
+      console.log(`Recalculated CreativeTask target ${target._id}: currentValue=${target.currentValue}, status=${target.status}`);
     }
   } catch (error) {
-    console.error('Error recalculating target progress:', error);
+    console.error('Error recalculating CreativeTask target progress:', error);
   }
 };
 
-// @desc    Get all SMM tasks based on filters
-// @route   GET /api/smm-tasks
+// @desc    Get all CreativeTask tasks based on filters
+// @route   GET /api/seo-tasks
 // @access  Public
-export const getSmmTasks = async (req, res) => {
+export const getCreativeTasks = async (req, res) => {
   try {
     const { companyId, employeeId, weekLabel } = req.query;
 
     const query = {};
     if (companyId && companyId !== 'all') query.companyId = companyId;
-    // If employeeId is "all", we don't filter by it
     if (employeeId && employeeId !== 'all') query.employeeId = employeeId;
-    // Let's assume we want tasks globally if weekLabel isn't strictly requested, 
-    // but the dashboard relies on week filters
     if (weekLabel) query.weekLabel = weekLabel;
 
-    const tasks = await SmmTask.find(query).sort({ createdAt: -1 });
+    const tasks = await CreativeTask.find(query).sort({ createdAt: -1 });
 
     res.status(200).json({ success: true, count: tasks.length, data: tasks });
   } catch (error) {
-    console.error('Error fetching SMM tasks:', error);
+    console.error('Error fetching CreativeTask tasks:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
-// @desc    Create a new SMM task
-// @route   POST /api/smm-tasks
+// @desc    Create a new CreativeTask task
+// @route   POST /api/seo-tasks
 // @access  Public
-export const createSmmTask = async (req, res) => {
+export const createCreativeTask = async (req, res) => {
   try {
-    const { title, url, type, status, employeeId, companyId, weekLabel, date } = req.body;
+    const { title, description, url, type, status, employeeId, assignedTo, companyId, weekLabel, date } = req.body;
 
-    if (!title || !companyId || !employeeId) {
-      return res.status(400).json({ success: false, message: 'Title, companyId, and employeeId are required' });
+    if (!title || !companyId || !assignedTo) {
+      return res.status(400).json({ success: false, message: 'Title, companyId, and assignedTo are required' });
     }
 
-    const newTask = await SmmTask.create({
+    const newTask = await CreativeTask.create({
       title,
+      description,
       url,
       type,
       status,
       employeeId,
+      assignedTo,
       companyId,
       weekLabel,
       date,
@@ -91,8 +91,8 @@ export const createSmmTask = async (req, res) => {
     if (employeeId) {
       const company = await Company.findOne({ id: companyId });
       const notificationData = {
-        title: 'New SMM Task Assigned',
-        message: `You have been assigned a new SMM task: ${title}`,
+        title: 'New CreativeTask Task Assigned',
+        message: `You have been assigned a new CreativeTask task: ${title}`,
         category: 'task',
         severity: 'info',
         userId: employeeId,
@@ -103,58 +103,55 @@ export const createSmmTask = async (req, res) => {
       await Notification.create(notificationData);
     }
 
-    if (status === 'completed') {
-      await recalculateSmmTargetProgress(employeeId, type);
+    if (status === 'completed' && employeeId) {
+      await recalculateSeoTargetProgress(employeeId, type);
     }
 
     res.status(201).json({ success: true, data: newTask });
   } catch (error) {
-    console.error('Error creating SMM task:', error);
+    console.error('Error creating CreativeTask task:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
-// @desc    Update an SMM task
-// @route   PUT /api/smm-tasks/:id
+// @desc    Update an CreativeTask task
+// @route   PUT /api/seo-tasks/:id
 // @access  Public
-export const updateSmmTask = async (req, res) => {
+export const updateCreativeTask = async (req, res) => {
   try {
-    const originalTask = await SmmTask.findById(req.params.id);
+    const originalTask = await CreativeTask.findById(req.params.id);
 
     if (!originalTask) {
       return res.status(404).json({ success: false, message: 'Task not found' });
     }
 
-    const updatedTask = await SmmTask.findByIdAndUpdate(req.params.id, req.body, {
+    const updatedTask = await CreativeTask.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
     });
 
     // Recalculate target progress if status, type, or employee changed, or if it was completed
-    if (originalTask.status === 'completed' || updatedTask.status === 'completed') {
-      await recalculateSmmTargetProgress(originalTask.employeeId, originalTask.type);
-      if (originalTask.employeeId !== updatedTask.employeeId || originalTask.type !== updatedTask.type) {
-        await recalculateSmmTargetProgress(updatedTask.employeeId, updatedTask.type);
+    if ((originalTask.status === 'completed' || updatedTask.status === 'completed') && (originalTask.employeeId || updatedTask.employeeId)) {
+      if (originalTask.employeeId) {
+        await recalculateSeoTargetProgress(originalTask.employeeId, originalTask.type);
+      }
+      if (updatedTask.employeeId && (originalTask.employeeId !== updatedTask.employeeId || originalTask.type !== updatedTask.type)) {
+        await recalculateSeoTargetProgress(updatedTask.employeeId, updatedTask.type);
       }
     }
 
     // Send notification if newly completed
     if (originalTask.status !== 'completed' && updatedTask.status === 'completed') {
       const managers = await User.find({ role: 'manager' });
-      
-      let employeeName = 'An employee';
-      if (updatedTask.employeeId) {
-        const emp = await User.findById(updatedTask.employeeId);
-        if (emp) employeeName = emp.name;
-      }
+      const employeeName = updatedTask.assignedTo || 'An employee';
       
       const company = await Company.findOne({ id: updatedTask.companyId });
       
       const notifications = managers.map(manager => {
         const notif = {
-          title: 'SMM Task Completed',
-          message: `${employeeName} completed the SMM task: ${updatedTask.title}`,
-          category: 'smm',
+          title: 'CreativeTask Task Completed',
+          message: `${employeeName} completed the CreativeTask task: ${updatedTask.title}`,
+          category: 'seo',
           severity: 'success',
           userId: manager._id
         };
@@ -169,31 +166,31 @@ export const updateSmmTask = async (req, res) => {
 
     res.status(200).json({ success: true, data: updatedTask });
   } catch (error) {
-    console.error('Error updating SMM task:', error);
+    console.error('Error updating CreativeTask task:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
-// @desc    Delete an SMM task
-// @route   DELETE /api/smm-tasks/:id
+// @desc    Delete an CreativeTask task
+// @route   DELETE /api/seo-tasks/:id
 // @access  Public
-export const deleteSmmTask = async (req, res) => {
+export const deleteCreativeTask = async (req, res) => {
   try {
-    const task = await SmmTask.findById(req.params.id);
+    const task = await CreativeTask.findById(req.params.id);
 
     if (!task) {
       return res.status(404).json({ success: false, message: 'Task not found' });
     }
 
-    await SmmTask.findByIdAndDelete(req.params.id);
+    await CreativeTask.findByIdAndDelete(req.params.id);
 
-    if (task.status === 'completed') {
-      await recalculateSmmTargetProgress(task.employeeId, task.type);
+    if (task.status === 'completed' && task.employeeId) {
+      await recalculateSeoTargetProgress(task.employeeId, task.type);
     }
 
     res.status(200).json({ success: true, data: {} });
   } catch (error) {
-    console.error('Error deleting SMM task:', error);
+    console.error('Error deleting CreativeTask task:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

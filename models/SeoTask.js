@@ -50,6 +50,14 @@ const seoTaskSchema = new mongoose.Schema(
     dueDate: {
       type: Date,
     },
+    targetQuantity: {
+      type: Number,
+      default: 1,
+    },
+    completedQuantity: {
+      type: Number,
+      default: 0,
+    },
     isAutomated: {
       type: Boolean,
       default: false,

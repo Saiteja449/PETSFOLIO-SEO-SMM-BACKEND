@@ -21,12 +21,13 @@ const recalculateSeoTargetProgress = async (employeeId, taskType) => {
 
     for (const target of targets) {
       // Count completed SeoTasks for this employee & type within the target's start and end dates
-      const completedCount = await SeoTask.countDocuments({
+      const completedTasks = await SeoTask.find({
         employeeId,
         type: taskType,
         status: 'completed',
         createdAt: { $gte: target.startDate, $lte: target.endDate }
       });
+      const completedCount = completedTasks.reduce((acc, t) => acc + (t.completedQuantity || 1), 0);
 
       target.currentValue = completedCount;
       const goalValue = parseInt(target.targetGoal) || target.weeklyTarget || target.monthlyTarget || 0;

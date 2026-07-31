@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const smmTaskSchema = new mongoose.Schema(
+const creativeTaskSchema = new mongoose.Schema(
   {
     title: {
       type: String,
@@ -17,14 +17,10 @@ const smmTaskSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
-    platform: {
-      type: String,
-      default: '',
-    },
     type: {
       type: String,
       required: true,
-      default: 'Reel Post',
+      default: 'Creative Task',
     },
     status: {
       type: String,
@@ -32,9 +28,12 @@ const smmTaskSchema = new mongoose.Schema(
       default: 'notstarted',
       enum: ['notstarted', 'inprogress', 'completed'],
     },
-    employeeId: {
+    assignedTo: {
       type: String,
       required: true,
+    },
+    employeeId: {
+      type: String,
     },
     companyId: {
       type: String,
@@ -69,8 +68,7 @@ const smmTaskSchema = new mongoose.Schema(
   }
 );
 
-// Transform the _id to id in JSON responses for frontend compatibility
-smmTaskSchema.set('toJSON', {
+creativeTaskSchema.set('toJSON', {
   transform: (doc, ret) => {
     ret.id = ret._id;
     delete ret._id;
@@ -78,6 +76,6 @@ smmTaskSchema.set('toJSON', {
   },
 });
 
-const SmmTask = mongoose.model('SmmTask', smmTaskSchema);
+const CreativeTask = mongoose.model('CreativeTask', creativeTaskSchema);
 
-export default SmmTask;
+export default CreativeTask;

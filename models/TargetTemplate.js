@@ -21,6 +21,10 @@ const TargetTemplateSchema = new mongoose.Schema({
   defaultGoalValue: {
     type: Number,
     required: false,
+  },
+  isFixed: {
+    type: Boolean,
+    default: false,
   }
 }, { timestamps: true });
 
