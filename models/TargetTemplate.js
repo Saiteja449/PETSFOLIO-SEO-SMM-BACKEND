@@ -21,35 +21,7 @@ const TargetTemplateSchema = new mongoose.Schema({
   defaultGoalValue: {
     type: Number,
     required: false,
-  },
-  isFixed: {
-    type: Boolean,
-    default: false,
-  },
-  defaultFrequency: {
-    type: String,
-    enum: ["Daily", "Weekly", "Monthly"],
-    required: false,
-  },
-  defaultTargetGoal: {
-    type: String,
-    required: false,
-  },
-  companyOverrides: [
-    {
-      companyId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Company",
-      },
-      frequency: {
-        type: String,
-        enum: ["Daily", "Weekly", "Monthly"],
-      },
-      targetGoal: {
-        type: String,
-      },
-    }
-  ],
+  }
 }, { timestamps: true });
 
 const TargetTemplate = mongoose.model('TargetTemplate', TargetTemplateSchema);

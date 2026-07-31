@@ -11,37 +11,6 @@ const SeoActivityTemplateSchema = new mongoose.Schema(
       default: "SEO",
       required: true,
     },
-    description: {
-      type: String,
-    },
-    isFixed: {
-      type: Boolean,
-      default: false,
-    },
-    defaultFrequency: {
-      type: String,
-      enum: ["Daily", "Weekly", "Monthly"],
-      required: false,
-    },
-    defaultTargetGoal: {
-      type: String,
-      required: false,
-    },
-    companyOverrides: [
-      {
-        companyId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Company",
-        },
-        frequency: {
-          type: String,
-          enum: ["Daily", "Weekly", "Monthly"],
-        },
-        targetGoal: {
-          type: String,
-        },
-      }
-    ],
   },
   { timestamps: true },
 );

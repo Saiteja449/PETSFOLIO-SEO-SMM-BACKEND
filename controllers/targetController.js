@@ -142,7 +142,7 @@ const generateBatchTasks = async (employeeId, companyId, assignments, type) => {
 
 export const createTargetTemplate = async (req, res) => {
   try {
-    const { companyId, name, description, metric, defaultGoalValue, isFixed, defaultFrequency, defaultTargetGoal, companyOverrides } =
+    const { companyId, name, description, metric, defaultGoalValue } =
       req.body;
     const template = await TargetTemplate.create({
       companyId: companyId || undefined,
@@ -150,10 +150,6 @@ export const createTargetTemplate = async (req, res) => {
       description,
       metric,
       defaultGoalValue,
-      isFixed,
-      defaultFrequency,
-      defaultTargetGoal,
-      companyOverrides,
     });
     res.status(201).json({ success: true, data: template });
   } catch (error) {
@@ -194,10 +190,10 @@ export const deleteTargetTemplate = async (req, res) => {
 
 export const updateTargetTemplate = async (req, res) => {
   try {
-    const { name, description, metric, defaultGoalValue, isFixed, defaultFrequency, defaultTargetGoal, companyOverrides } = req.body;
+    const { name, description, metric, defaultGoalValue } = req.body;
     const template = await TargetTemplate.findByIdAndUpdate(
       req.params.id,
-      { name, description, metric, defaultGoalValue, isFixed, defaultFrequency, defaultTargetGoal, companyOverrides },
+      { name, description, metric, defaultGoalValue },
       { new: true }
     );
     res.status(200).json({ success: true, data: template });
@@ -359,15 +355,10 @@ export const claimVideo = async (req, res) => {
 
 export const createSeoActivityTemplate = async (req, res) => {
   try {
-    const { activityName, category, description, isFixed, defaultFrequency, defaultTargetGoal, companyOverrides } = req.body;
+    const { activityName, category } = req.body;
     const template = await SeoActivityTemplate.create({
       activityName,
       category,
-      description,
-      isFixed,
-      defaultFrequency,
-      defaultTargetGoal,
-      companyOverrides,
     });
     res.status(201).json({ success: true, data: template });
   } catch (error) {
@@ -395,10 +386,10 @@ export const deleteSeoActivityTemplate = async (req, res) => {
 
 export const updateSeoActivityTemplate = async (req, res) => {
   try {
-    const { activityName, category, description, isFixed, defaultFrequency, defaultTargetGoal, companyOverrides } = req.body;
+    const { activityName, category } = req.body;
     const template = await SeoActivityTemplate.findByIdAndUpdate(
       req.params.id,
-      { activityName, category, description, isFixed, defaultFrequency, defaultTargetGoal, companyOverrides },
+      { activityName, category },
       { new: true }
     );
     res.status(200).json({ success: true, data: template });

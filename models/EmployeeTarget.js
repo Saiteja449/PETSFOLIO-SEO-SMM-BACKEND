@@ -63,10 +63,6 @@ const EmployeeTargetSchema = new mongoose.Schema(
       type: String,
       required: false,
     },
-    description: {
-      type: String,
-      required: false,
-    },
     currentValue: {
       type: Number,
       default: 0,
