@@ -37,9 +37,10 @@ const generateBatchTasks = async (employeeId, companyId, assignments, type) => {
 
     const allHolidays = await Holiday.find({});
     const isWorkingDay = (d) => {
+      if (d.getDay() === 0) return false; // Skip Sundays
       if (d.getDay() === 6) {
         const dateNum = d.getDate();
-        if (dateNum >= 8 && dateNum <= 14) return false;
+        if (dateNum >= 8 && dateNum <= 14) return false; // Skip 2nd Saturday
       }
       const dString = d.toISOString().split('T')[0];
       for (const h of allHolidays) {
@@ -73,61 +74,87 @@ const generateBatchTasks = async (employeeId, companyId, assignments, type) => {
           }
         }
       } else if (a.frequency === "Weekly") {
-        const dayOfWeek = today.getDay() || 7; 
-        const startDateOfWeek = new Date(today);
-        startDateOfWeek.setDate(today.getDate() - dayOfWeek + 1); // Monday of this week
+        // Generate tasks for EVERY week in the current month
+        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
         
-        if (targetGoal >= 7) {
-          const base = Math.floor(targetGoal / 7);
-          let rem = targetGoal % 7;
+        // Find Monday of the week containing the 1st of the month
+        let cursor = new Date(startOfMonth);
+        const cursorDay = cursor.getDay() || 7; // 1=Mon...7=Sun
+        cursor.setDate(cursor.getDate() - cursorDay + 1); // Go back to Monday
+        
+        while (cursor <= endOfMonth) {
+          // Collect working days for this week that fall within the current month
+          let weekWorkingDays = [];
           for (let i = 0; i < 7; i++) {
-             const d = new Date(startDateOfWeek);
-             d.setDate(d.getDate() + i);
-             const count = base + (i < rem ? 1 : 0);
-             if (isWorkingDay(d)) {
-               if (count > 5) {
-                 dates.push({ date: new Date(d), targetQuantity: count });
-               } else {
-                 for(let k=0; k<count; k++) dates.push({ date: new Date(d), targetQuantity: 1 });
-               }
-             }
+            const d = new Date(cursor);
+            d.setDate(d.getDate() + i);
+            // Only include days that belong to the current month
+            if (d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear()) {
+              if (isWorkingDay(d)) weekWorkingDays.push(d);
+            }
           }
-        } else {
-          const step = 7 / targetGoal;
-          for (let i = 0; i < targetGoal; i++) {
-            const offset = Math.floor(i * step);
-            const d = new Date(startDateOfWeek);
-            d.setDate(d.getDate() + offset);
-            if (isWorkingDay(d)) dates.push({ date: new Date(d), targetQuantity: 1 });
+          
+          const W = weekWorkingDays.length;
+          if (W > 0) {
+            if (targetGoal >= W) {
+              const base = Math.floor(targetGoal / W);
+              let rem = targetGoal % W;
+              for (let i = 0; i < W; i++) {
+                const count = base + (i < rem ? 1 : 0);
+                const d = weekWorkingDays[i];
+                if (count > 5) {
+                  dates.push({ date: new Date(d), targetQuantity: count });
+                } else {
+                  for (let k = 0; k < count; k++) dates.push({ date: new Date(d), targetQuantity: 1 });
+                }
+              }
+            } else {
+              const step = W / targetGoal;
+              for (let i = 0; i < targetGoal; i++) {
+                const offset = Math.floor(i * step);
+                const d = weekWorkingDays[offset];
+                dates.push({ date: new Date(d), targetQuantity: 1 });
+              }
+            }
           }
+          
+          // Move to next Monday
+          cursor.setDate(cursor.getDate() + 7);
         }
       } else if (a.frequency === "Monthly") {
         const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
         const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
         const totalDaysInMonth = endOfMonth.getDate();
         
-        if (targetGoal >= totalDaysInMonth) {
-          const base = Math.floor(targetGoal / totalDaysInMonth);
-          let rem = targetGoal % totalDaysInMonth;
-          for (let i = 0; i < totalDaysInMonth; i++) {
-             const d = new Date(startOfMonth);
-             d.setDate(d.getDate() + i);
-             const count = base + (i < rem ? 1 : 0);
-             if (isWorkingDay(d)) {
+        let workingDays = [];
+        for (let i = 0; i < totalDaysInMonth; i++) {
+          const d = new Date(startOfMonth);
+          d.setDate(d.getDate() + i);
+          if (isWorkingDay(d)) workingDays.push(d);
+        }
+        
+        const W = workingDays.length;
+        if (W > 0) {
+          if (targetGoal >= W) {
+            const base = Math.floor(targetGoal / W);
+            let rem = targetGoal % W;
+            for (let i = 0; i < W; i++) {
+               const count = base + (i < rem ? 1 : 0);
+               const d = workingDays[i];
                if (count > 5) {
                  dates.push({ date: new Date(d), targetQuantity: count });
                } else {
                  for(let k=0; k<count; k++) dates.push({ date: new Date(d), targetQuantity: 1 });
                }
-             }
-          }
-        } else {
-          const step = totalDaysInMonth / targetGoal;
-          for (let i = 0; i < targetGoal; i++) {
-            const offset = Math.floor(i * step);
-            const d = new Date(startOfMonth);
-            d.setDate(d.getDate() + offset);
-            if (isWorkingDay(d)) dates.push({ date: new Date(d), targetQuantity: 1 });
+            }
+          } else {
+            const step = W / targetGoal;
+            for (let i = 0; i < targetGoal; i++) {
+              const offset = Math.floor(i * step);
+              const d = workingDays[offset];
+              dates.push({ date: new Date(d), targetQuantity: 1 });
+            }
           }
         }
       }
