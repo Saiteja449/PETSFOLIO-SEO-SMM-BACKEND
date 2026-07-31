@@ -25,7 +25,7 @@ const userSchema = new mongoose.Schema(
     },
     department: {
       type: [String],
-      enum: ["seo", "smm"],
+      enum: ["seo", "smm", "content", "sales", "creative"],
       default: ["seo"],
     },
     assignedCompanies: {
