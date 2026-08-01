@@ -106,11 +106,16 @@ const getWeekNumber = (d) => {
  */
 const expandDailyTarget = (date, dailyTarget) => {
   const entries = [];
-  if (dailyTarget <= 5) {
+  if (dailyTarget <= 5 && dailyTarget > 0) {
     for (let k = 0; k < dailyTarget; k++) {
-      entries.push({ date: new Date(date), targetQuantity: 1 });
+      entries.push({
+        date: new Date(date),
+        targetQuantity: 1,
+        taskNumber: k + 1,
+        totalTasks: dailyTarget,
+      });
     }
-  } else {
+  } else if (dailyTarget > 5) {
     entries.push({ date: new Date(date), targetQuantity: dailyTarget });
   }
   return entries;
@@ -367,10 +372,13 @@ const generateBatchTasks = async (employeeId, companyId, assignments, type) => {
         const d = entry.date;
         const qty = entry.targetQuantity;
         const weekLabel = `Week ${getWeekNumber(d)}`;
-        const title =
-          qty > 1
-            ? `${a.frequency} Target: ${templateName} (Goal: ${qty})`
-            : `${a.frequency} Target: ${templateName}`;
+        
+        let title = `${a.frequency} Target: ${templateName}`;
+        if (qty > 1) {
+          title += ` (Goal: ${qty})`;
+        } else if (entry.totalTasks > 1 && entry.taskNumber) {
+          title += ` - Task (${entry.taskNumber})`;
+        }
 
         if (type === "SMM") {
           tasksToInsert.push({
