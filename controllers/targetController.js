@@ -372,7 +372,7 @@ const generateBatchTasks = async (employeeId, companyId, assignments, type) => {
         const d = entry.date;
         const qty = entry.targetQuantity;
         const weekLabel = `Week ${getWeekNumber(d)}`;
-        
+
         let title = `${a.frequency} Target: ${templateName}`;
         if (qty > 1) {
           title += ` (Goal: ${qty})`;
@@ -535,19 +535,42 @@ export const assignBatchTargets = async (req, res) => {
       templateId: { $exists: true },
     });
 
-    const newTargets = assignments.map((a) => ({
-      employeeId,
-      managerId,
-      companyId,
-      templateId: a.templateId,
-      platform: a.platform,
-      metric: a.metric || "PostCount", // Defaulting metric as templates don't strictly define it right now
-      frequency: a.frequency,
-      targetGoal: a.targetGoal,
-      expected: a.expected,
-      startDate: new Date(),
-      endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
-    }));
+    const newTargets = assignments.map((a) => {
+      let weeklyTarget = 0;
+      let monthlyTarget = 0;
+
+      const goal = parseInt(a.targetGoal) || 0;
+      if (a.frequency === "Daily") {
+        weeklyTarget = goal * 5;
+        monthlyTarget = goal * 20;
+      } else if (a.frequency === "Weekly") {
+        weeklyTarget = goal;
+        monthlyTarget = goal * 4;
+      } else if (a.frequency === "Monthly") {
+        weeklyTarget = Math.max(1, Math.round(goal / 4));
+        monthlyTarget = goal;
+      }
+
+      return {
+        employeeId,
+        managerId,
+        companyId,
+        templateId: a.templateId,
+        seoTemplateId: a.seoTemplateId,
+        contentTemplateId: a.contentTemplateId,
+        salesTemplateId: a.salesTemplateId,
+        creativeTemplateId: a.creativeTemplateId,
+        platform: a.platform,
+        metric: a.metric || "PostCount",
+        frequency: a.frequency,
+        targetGoal: a.targetGoal,
+        weeklyTarget,
+        monthlyTarget,
+        expected: a.expected,
+        startDate: new Date(),
+        endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
+      };
+    });
 
     if (newTargets.length > 0) {
       await EmployeeTarget.insertMany(newTargets);
@@ -570,18 +593,35 @@ export const assignSeoBatchTargets = async (req, res) => {
       seoTemplateId: { $exists: true },
     });
 
-    const newTargets = assignments.map((a) => ({
-      employeeId,
-      managerId,
-      companyId,
-      seoTemplateId: a.seoTemplateId,
-      targetType: "SEO",
-      frequency: a.frequency,
-      targetGoal: a.targetGoal,
-      expected: a.expected,
-      startDate: new Date(),
-      endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
-    }));
+    const newTargets = assignments.map((a) => {
+      let weeklyTarget = 0;
+      let monthlyTarget = 0;
+      const goal = parseInt(a.targetGoal) || 0;
+      if (a.frequency === "Daily") {
+        weeklyTarget = goal * 5;
+        monthlyTarget = goal * 20;
+      } else if (a.frequency === "Weekly") {
+        weeklyTarget = goal;
+        monthlyTarget = goal * 4;
+      } else if (a.frequency === "Monthly") {
+        weeklyTarget = Math.max(1, Math.round(goal / 4));
+        monthlyTarget = goal;
+      }
+      return {
+        employeeId,
+        managerId,
+        companyId,
+        seoTemplateId: a.seoTemplateId,
+        targetType: "SEO",
+        frequency: a.frequency,
+        targetGoal: a.targetGoal,
+        weeklyTarget,
+        monthlyTarget,
+        expected: a.expected,
+        startDate: new Date(),
+        endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
+      };
+    });
 
     if (newTargets.length > 0) {
       await EmployeeTarget.insertMany(newTargets);
@@ -757,24 +797,41 @@ export const assignContentBatchTargets = async (req, res) => {
       companyId,
       targetType: "Content",
     });
-    const bulkOps = assignments.map((a) => ({
-      insertOne: {
-        document: {
-          employeeId,
-          managerId,
-          companyId,
-          contentTemplateId: a.contentTemplateId,
-          targetType: "Content",
-          frequency: a.frequency,
-          targetGoal: a.targetGoal,
-          expected: a.expected,
-          startDate: new Date(),
-          endDate: new Date(
-            new Date().setFullYear(new Date().getFullYear() + 1),
-          ),
+    const bulkOps = assignments.map((a) => {
+      let weeklyTarget = 0;
+      let monthlyTarget = 0;
+      const goal = parseInt(a.targetGoal) || 0;
+      if (a.frequency === "Daily") {
+        weeklyTarget = goal * 5;
+        monthlyTarget = goal * 20;
+      } else if (a.frequency === "Weekly") {
+        weeklyTarget = goal;
+        monthlyTarget = goal * 4;
+      } else if (a.frequency === "Monthly") {
+        weeklyTarget = Math.max(1, Math.round(goal / 4));
+        monthlyTarget = goal;
+      }
+      return {
+        insertOne: {
+          document: {
+            employeeId,
+            managerId,
+            companyId,
+            contentTemplateId: a.contentTemplateId,
+            targetType: "Content",
+            frequency: a.frequency,
+            targetGoal: a.targetGoal,
+            weeklyTarget,
+            monthlyTarget,
+            expected: a.expected,
+            startDate: new Date(),
+            endDate: new Date(
+              new Date().setFullYear(new Date().getFullYear() + 1),
+            ),
+          },
         },
-      },
-    }));
+      };
+    });
     if (bulkOps.length > 0) {
       await EmployeeTarget.bulkWrite(bulkOps);
       await generateBatchTasks(employeeId, companyId, assignments, "Content");
@@ -839,24 +896,41 @@ export const assignSalesBatchTargets = async (req, res) => {
       companyId,
       targetType: "Sales",
     });
-    const bulkOps = assignments.map((a) => ({
-      insertOne: {
-        document: {
-          employeeId,
-          managerId,
-          companyId,
-          salesTemplateId: a.salesTemplateId,
-          targetType: "Sales",
-          frequency: a.frequency,
-          targetGoal: a.targetGoal,
-          expected: a.expected,
-          startDate: new Date(),
-          endDate: new Date(
-            new Date().setFullYear(new Date().getFullYear() + 1),
-          ),
+    const bulkOps = assignments.map((a) => {
+      let weeklyTarget = 0;
+      let monthlyTarget = 0;
+      const goal = parseInt(a.targetGoal) || 0;
+      if (a.frequency === "Daily") {
+        weeklyTarget = goal * 5;
+        monthlyTarget = goal * 20;
+      } else if (a.frequency === "Weekly") {
+        weeklyTarget = goal;
+        monthlyTarget = goal * 4;
+      } else if (a.frequency === "Monthly") {
+        weeklyTarget = Math.max(1, Math.round(goal / 4));
+        monthlyTarget = goal;
+      }
+      return {
+        insertOne: {
+          document: {
+            employeeId,
+            managerId,
+            companyId,
+            salesTemplateId: a.salesTemplateId,
+            targetType: "Sales",
+            frequency: a.frequency,
+            targetGoal: a.targetGoal,
+            weeklyTarget,
+            monthlyTarget,
+            expected: a.expected,
+            startDate: new Date(),
+            endDate: new Date(
+              new Date().setFullYear(new Date().getFullYear() + 1),
+            ),
+          },
         },
-      },
-    }));
+      };
+    });
     if (bulkOps.length > 0) {
       await EmployeeTarget.bulkWrite(bulkOps);
       await generateBatchTasks(employeeId, companyId, assignments, "Sales");
@@ -921,24 +995,41 @@ export const assignCreativeBatchTargets = async (req, res) => {
       companyId,
       targetType: "Creative",
     });
-    const bulkOps = assignments.map((a) => ({
-      insertOne: {
-        document: {
-          employeeId,
-          managerId,
-          companyId,
-          creativeTemplateId: a.creativeTemplateId,
-          targetType: "Creative",
-          frequency: a.frequency,
-          targetGoal: a.targetGoal,
-          expected: a.expected,
-          startDate: new Date(),
-          endDate: new Date(
-            new Date().setFullYear(new Date().getFullYear() + 1),
-          ),
+    const bulkOps = assignments.map((a) => {
+      let weeklyTarget = 0;
+      let monthlyTarget = 0;
+      const goal = parseInt(a.targetGoal) || 0;
+      if (a.frequency === "Daily") {
+        weeklyTarget = goal * 5;
+        monthlyTarget = goal * 20;
+      } else if (a.frequency === "Weekly") {
+        weeklyTarget = goal;
+        monthlyTarget = goal * 4;
+      } else if (a.frequency === "Monthly") {
+        weeklyTarget = Math.max(1, Math.round(goal / 4));
+        monthlyTarget = goal;
+      }
+      return {
+        insertOne: {
+          document: {
+            employeeId,
+            managerId,
+            companyId,
+            creativeTemplateId: a.creativeTemplateId,
+            targetType: "Creative",
+            frequency: a.frequency,
+            targetGoal: a.targetGoal,
+            weeklyTarget,
+            monthlyTarget,
+            expected: a.expected,
+            startDate: new Date(),
+            endDate: new Date(
+              new Date().setFullYear(new Date().getFullYear() + 1),
+            ),
+          },
         },
-      },
-    }));
+      };
+    });
     if (bulkOps.length > 0) {
       await EmployeeTarget.bulkWrite(bulkOps);
       await generateBatchTasks(employeeId, companyId, assignments, "Creative");
