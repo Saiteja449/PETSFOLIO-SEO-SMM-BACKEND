@@ -18,6 +18,102 @@ import Holiday from "../models/Holiday.js";
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * Check if a given date is the 2nd Saturday of its month.
+ * The 2nd Saturday falls between the 8th and 14th (inclusive).
+ */
+const isSecondSaturday = (d) => {
+  if (d.getDay() !== 6) return false;
+  const dateNum = d.getDate();
+  return dateNum >= 8 && dateNum <= 14;
+};
+
+/**
+ * Build a Set of holiday date strings (YYYY-MM-DD) for O(1) lookup.
+ * This avoids scanning the holidays array for every single day check.
+ */
+const buildHolidaySet = (holidays) => {
+  const set = new Set();
+  for (const h of holidays) {
+    set.add(h.date.toISOString().split("T")[0]);
+  }
+  return set;
+};
+
+/**
+ * Determine if a date is a working day.
+ * Skips: Sundays, 2nd Saturdays, and holidays.
+ * All other Saturdays (1st, 3rd, 4th, 5th) are treated as working days.
+ */
+const isWorkingDay = (d, holidaySet) => {
+  if (d.getDay() === 0) return false; // Sunday
+  if (isSecondSaturday(d)) return false; // 2nd Saturday
+  if (holidaySet && holidaySet.has(d.toISOString().split("T")[0])) return false; // Holiday
+  return true;
+};
+
+/**
+ * Get all working days in the current month, in order.
+ * Returns an array of Date objects.
+ */
+const getWorkingDaysInMonth = (year, month, holidaySet) => {
+  const startOfMonth = new Date(year, month, 1);
+  const endOfMonth = new Date(year, month + 1, 0);
+  const totalDays = endOfMonth.getDate();
+  const workingDays = [];
+
+  for (let i = 1; i <= totalDays; i++) {
+    const d = new Date(year, month, i);
+    if (isWorkingDay(d, holidaySet)) {
+      workingDays.push(d);
+    }
+  }
+  return workingDays;
+};
+
+/**
+ * Get the ISO week number for a date.
+ * Uses the standard ISO 8601 algorithm:
+ * - Week 1 is the week containing the first Thursday of the year.
+ * - Weeks start on Monday.
+ */
+const getWeekNumber = (d) => {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  // Set to nearest Thursday: current date + 4 - current day number (Monday=1, Sunday=7)
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  return Math.ceil(((date - yearStart) / 86400000 + 1) / 7);
+};
+
+/**
+ * Expand a daily target count into task entries for a single date.
+ *
+ * Rule:
+ *   - If dailyTarget <= 5 ΓåÆ create `dailyTarget` individual tasks, each with targetQuantity=1
+ *   - If dailyTarget > 5  ΓåÆ create 1 task with targetQuantity=dailyTarget
+ */
+const expandDailyTarget = (date, dailyTarget) => {
+  const entries = [];
+  if (dailyTarget <= 5 && dailyTarget > 0) {
+    for (let k = 0; k < dailyTarget; k++) {
+      entries.push({
+        date: new Date(date),
+        targetQuantity: 1,
+        taskNumber: k + 1,
+        totalTasks: dailyTarget,
+      });
+    }
+  } else if (dailyTarget > 5) {
+    entries.push({ date: new Date(date), targetQuantity: dailyTarget });
+  }
+  return entries;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPER FUNCTIONS for task generation
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
  * Generate task date entries for DAILY frequency.
  */
 const generateDailyTasks = (
