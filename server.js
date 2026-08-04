@@ -16,6 +16,7 @@ import creativeTaskRoutes from './routes/creativeTaskRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import seoAnalyticsRoutes from './routes/seoAnalyticsRoutes.js';
 import holidayRoutes from './routes/holidayRoutes.js';
+import biRoutes from './routes/biRoutes.js';
 
 dotenv.config();
 
@@ -40,6 +41,7 @@ app.use('/api/creative-tasks', creativeTaskRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/seo-analytics', seoAnalyticsRoutes);
 app.use('/api/holidays', holidayRoutes);
+app.use('/api/bi', biRoutes);
 
 // Test Route
 app.get('/', (req, res) => {
