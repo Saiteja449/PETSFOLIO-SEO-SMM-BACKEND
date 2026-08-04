@@ -153,7 +153,7 @@ const createEmployee = async (req, res) => {
 // @access  Private/Admin
 const getEmployees = async (req, res) => {
   try {
-    const employees = await User.find({ role: "employee" }).select("-password");
+    const employees = await User.find({ role: { $in: ["employee", "intern"] } }).select("-password");
     res.json({ success: true, data: employees });
   } catch (error) {
     console.error(error);
