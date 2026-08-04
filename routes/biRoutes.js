@@ -57,7 +57,7 @@ Keep your responses professional, concise, and formatted clearly in Markdown. Do
     };
 
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash:generateContent?key=${geminiApiKey}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-3.1-flash-lite:generateContent?key=${geminiApiKey}`,
       requestBody,
       {
         headers: {
