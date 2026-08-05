@@ -64,18 +64,17 @@ router.post("/chat", async (req, res) => {
     const context = {};
 
     if (combinedText.includes("employee") || combinedText.includes("user") || combinedText.includes("staff")) {
-      context.users = await User.find().select("-password -currentToken").limit(100).lean();
+      context.users = await User.find().select("-password -currentToken").lean();
     }
 
     if (combinedText.includes("company") || combinedText.includes("companies") || combinedText.includes("brand")) {
-      context.companies = await Company.find().limit(100).lean();
+      context.companies = await Company.find().lean();
     }
 
     if (combinedText.includes("target")) {
       context.targets = await EmployeeTarget.find()
         .populate("employeeId", "name")
         .populate("managerId", "name")
-        .limit(100)
         .lean();
     }
 
@@ -90,11 +89,11 @@ router.post("/chat", async (req, res) => {
       ]);
 
       const [smm, seo, content, sales, creative] = await Promise.all([
-        SmmTask.find().select("-description -url").sort({createdAt: -1}).limit(50).populate("employeeId", "name").lean(),
-        SeoTask.find().select("-description -url").sort({createdAt: -1}).limit(50).populate("employeeId", "name").lean(),
-        ContentTask.find().select("-description -url").sort({createdAt: -1}).limit(50).populate("employeeId", "name").lean(),
-        SalesTask.find().select("-description -url").sort({createdAt: -1}).limit(50).populate("employeeId", "name").lean(),
-        CreativeTask.find().select("-description -url").sort({createdAt: -1}).limit(50).populate("employeeId", "name").lean()
+        SmmTask.find().select("-description -url").sort({createdAt: -1}).limit(1000).populate("employeeId", "name").lean(),
+        SeoTask.find().select("-description -url").sort({createdAt: -1}).limit(1000).populate("employeeId", "name").lean(),
+        ContentTask.find().select("-description -url").sort({createdAt: -1}).limit(1000).populate("employeeId", "name").lean(),
+        SalesTask.find().select("-description -url").sort({createdAt: -1}).limit(1000).populate("employeeId", "name").lean(),
+        CreativeTask.find().select("-description -url").sort({createdAt: -1}).limit(1000).populate("employeeId", "name").lean()
       ]);
 
       context.tasks = { smm, seo, content, sales, creative };
