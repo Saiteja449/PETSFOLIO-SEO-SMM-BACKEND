@@ -304,11 +304,7 @@ const generateBatchTasks = async (employeeId, companyId, assignments, type) => {
         const qty = entry.targetQuantity;
         const weekLabel = `Week ${getWeekNumber(d)}`;
 
-        let title = `${a.frequency} Target: ${templateName}`;
-        if (qty > 1) {
-          title += ` (Goal: ${qty})`;
-        } else if (entry.totalTasks > 1 && entry.taskNumber) {
-          title += ` - Task (${entry.taskNumber})`;
+        let title = templateName;)`;
         }
 
         if (type === "SMM") {
