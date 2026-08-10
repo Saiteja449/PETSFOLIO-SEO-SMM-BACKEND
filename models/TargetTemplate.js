@@ -25,7 +25,11 @@ const TargetTemplateSchema = new mongoose.Schema({
   isFixed: {
     type: Boolean,
     default: false,
-  }
+  },
+  dailyExpiry: {
+      type: Boolean,
+      default: false,
+    },
 }, { timestamps: true });
 
 const TargetTemplate = mongoose.model('TargetTemplate', TargetTemplateSchema);

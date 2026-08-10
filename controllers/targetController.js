@@ -359,9 +359,9 @@ const generateBatchTasks = async (employeeId, companyId, assignments, type) => {
 
 export const createTargetTemplate = async (req, res) => {
   try {
-    const { companyId, name, description, metric, defaultGoalValue, isFixed } =
-      req.body;
+    const { companyId, name, description, metric, defaultGoalValue, isFixed, dailyExpiry } = req.body;
     const template = await TargetTemplate.create({
+      dailyExpiry,
       companyId: companyId || undefined,
       name,
       description,
@@ -408,7 +408,7 @@ export const deleteTargetTemplate = async (req, res) => {
 
 export const updateTargetTemplate = async (req, res) => {
   try {
-    const { name, description, metric, defaultGoalValue, isFixed } = req.body;
+    const { name, description, metric, defaultGoalValue, isFixed , dailyExpiry} = req.body;
     const template = await TargetTemplate.findByIdAndUpdate(
       req.params.id,
       { name, description, metric, defaultGoalValue, isFixed },
