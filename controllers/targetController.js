@@ -411,7 +411,7 @@ export const updateTargetTemplate = async (req, res) => {
     const { name, description, metric, defaultGoalValue, isFixed , dailyExpiry} = req.body;
     const template = await TargetTemplate.findByIdAndUpdate(
       req.params.id,
-      { name, description, metric, defaultGoalValue, isFixed },
+      { name, description, metric, defaultGoalValue, isFixed, dailyExpiry },
       { new: true },
     );
     res.status(200).json({ success: true, data: template });
@@ -624,10 +624,10 @@ export const deleteSeoActivityTemplate = async (req, res) => {
 
 export const updateSeoActivityTemplate = async (req, res) => {
   try {
-    const { activityName, category, description, isFixed } = req.body;
+    const { activityName, category, description, isFixed , dailyExpiry} = req.body;
     const template = await SeoActivityTemplate.findByIdAndUpdate(
       req.params.id,
-      { activityName, category, description, isFixed },
+      { activityName, category, description, isFixed , dailyExpiry},
       { new: true },
     );
     res.status(200).json({ success: true, data: template });
@@ -669,10 +669,10 @@ export const deleteContentActivityTemplate = async (req, res) => {
 };
 export const updateContentActivityTemplate = async (req, res) => {
   try {
-    const { activityName, category, description, isFixed } = req.body;
+    const { activityName, category, description, isFixed , dailyExpiry} = req.body;
     const template = await ContentActivityTemplate.findByIdAndUpdate(
       req.params.id,
-      { activityName, category, description, isFixed },
+      { activityName, category, description, isFixed , dailyExpiry},
       { new: true },
     );
     res.status(200).json({ success: true, data: template });
@@ -751,10 +751,10 @@ export const deleteSalesActivityTemplate = async (req, res) => {
 };
 export const updateSalesActivityTemplate = async (req, res) => {
   try {
-    const { activityName, category, description, isFixed } = req.body;
+    const { activityName, category, description, isFixed , dailyExpiry} = req.body;
     const template = await SalesActivityTemplate.findByIdAndUpdate(
       req.params.id,
-      { activityName, category, description, isFixed },
+      { activityName, category, description, isFixed , dailyExpiry},
       { new: true },
     );
     res.status(200).json({ success: true, data: template });
@@ -833,10 +833,10 @@ export const deleteCreativeActivityTemplate = async (req, res) => {
 };
 export const updateCreativeActivityTemplate = async (req, res) => {
   try {
-    const { activityName, category, description, isFixed } = req.body;
+    const { activityName, category, description, isFixed , dailyExpiry} = req.body;
     const template = await CreativeActivityTemplate.findByIdAndUpdate(
       req.params.id,
-      { activityName, category, description, isFixed },
+      { activityName, category, description, isFixed , dailyExpiry},
       { new: true },
     );
     res.status(200).json({ success: true, data: template });
