@@ -107,7 +107,8 @@ const expandDailyTarget = (date, dailyTarget) => {
     entries.push({ date: new Date(date), targetQuantity: dailyTarget });
   }
   return entries;
-};
+};
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPER FUNCTIONS for task generation
@@ -304,8 +305,7 @@ const generateBatchTasks = async (employeeId, companyId, assignments, type) => {
         const qty = entry.targetQuantity;
         const weekLabel = `Week ${getWeekNumber(d)}`;
 
-        let title = templateName;)`;
-        }
+        let title = templateName;
 
         if (type === "SMM") {
           tasksToInsert.push({
