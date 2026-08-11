@@ -17,6 +17,7 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import seoAnalyticsRoutes from './routes/seoAnalyticsRoutes.js';
 import holidayRoutes from './routes/holidayRoutes.js';
 import biRoutes from './routes/biRoutes.js';
+import { setupMonthlyTaskGenerator } from './jobs/monthlyTaskGenerator.js';
 
 dotenv.config();
 
@@ -49,7 +50,10 @@ app.get('/', (req, res) => {
 });
 
 // Connect to DB
-connectDB();
+await connectDB();
+
+// Initialize Cron Jobs
+setupMonthlyTaskGenerator();
 
 // Only listen if running locally (not on Vercel)
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {

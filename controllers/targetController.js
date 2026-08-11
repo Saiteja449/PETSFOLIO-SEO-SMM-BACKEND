@@ -380,7 +380,7 @@ const getTaskGenerationContext = async (type, assignment, user, employeeId) => {
 // MAIN FUNCTION: generateBatchTasks
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-const generateBatchTasks = async (employeeId, companyId, assignments, type) => {
+export const generateBatchTasks = async (employeeId, companyId, assignments, type) => {
   try {
     const user = await User.findById(employeeId);
     if (!user) return;
