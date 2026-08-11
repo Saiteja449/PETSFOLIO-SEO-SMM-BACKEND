@@ -93,20 +93,9 @@ const getWeekNumber = (d) => {
  *   - If dailyTarget > 5  ΓåÆ create 1 task with targetQuantity=dailyTarget
  */
 const expandDailyTarget = (date, dailyTarget) => {
-  const entries = [];
-  if (dailyTarget <= 5 && dailyTarget > 0) {
-    for (let k = 0; k < dailyTarget; k++) {
-      entries.push({
-        date: new Date(date),
-        targetQuantity: 1,
-        taskNumber: k + 1,
-        totalTasks: dailyTarget,
-      });
-    }
-  } else if (dailyTarget > 5) {
-    entries.push({ date: new Date(date), targetQuantity: dailyTarget });
-  }
-  return entries;
+  return dailyTarget > 0
+    ? [{ date: new Date(date), targetQuantity: dailyTarget }]
+    : [];
 };
 
 
@@ -271,32 +260,38 @@ const generateBatchTasks = async (employeeId, companyId, assignments, type) => {
       // ─── Resolve template name for task title/type ───
       let templateName = "Task";
       let templateType = "Post";
+      let dailyExpiry = false;
       if (type === "SMM") {
         const template = await TargetTemplate.findById(a.templateId);
         templateName = template?.name || "SMM Task";
         templateType = template?.name || "Reel Post";
+        dailyExpiry = template?.dailyExpiry || false;
       } else if (type === "SEO") {
         const template = await SeoActivityTemplate.findById(a.seoTemplateId);
         templateName = template?.activityName || "SEO Task";
         templateType = template?.activityName || "Blog Post";
+        dailyExpiry = template?.dailyExpiry || false;
       } else if (type === "Content") {
         const template = await ContentActivityTemplate.findById(
           a.contentTemplateId,
         );
         templateName = template?.activityName || "Content Task";
         templateType = template?.activityName || "Content Task";
+        dailyExpiry = template?.dailyExpiry || false;
       } else if (type === "Sales") {
         const template = await SalesActivityTemplate.findById(
           a.salesTemplateId,
         );
         templateName = template?.activityName || "Sales Task";
         templateType = template?.activityName || "Sales Task";
+        dailyExpiry = template?.dailyExpiry || false;
       } else if (type === "Creative") {
         const template = await CreativeActivityTemplate.findById(
           a.creativeTemplateId,
         );
         templateName = template?.activityName || "Creative Task";
         templateType = template?.activityName || "Creative Task";
+        dailyExpiry = template?.dailyExpiry || false;
       }
 
       // ─── Build task objects from date entries ───
@@ -319,6 +314,7 @@ const generateBatchTasks = async (employeeId, companyId, assignments, type) => {
             date: d.toISOString().split("T")[0],
             dueDate: d,
             targetQuantity: qty,
+            dailyExpiry,
             isAutomated: true,
           });
         } else {
@@ -333,6 +329,7 @@ const generateBatchTasks = async (employeeId, companyId, assignments, type) => {
             date: d.toISOString().split("T")[0],
             dueDate: d,
             targetQuantity: qty,
+            dailyExpiry,
             isAutomated: true,
           });
         }

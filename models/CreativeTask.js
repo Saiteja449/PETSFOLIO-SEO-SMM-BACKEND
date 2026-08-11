@@ -58,6 +58,11 @@ const creativeTaskSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    updates: [{
+      quantityAdded: { type: Number, required: true, min: 1 },
+      description: { type: String, required: true, trim: true },
+      date: { type: Date, default: Date.now },
+    }],
     isAutomated: {
       type: Boolean,
       default: false,

@@ -125,10 +125,22 @@ export const updateContentTask = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Task not found' });
     }
 
-    const updatedTask = await ContentTask.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
+    const { newUpdate, ...taskFields } = req.body;
+    let updatedTask;
+    if (newUpdate) {
+      const quantityAdded = Number(newUpdate.quantityAdded);
+      const description = String(newUpdate.description || '').trim();
+      const remaining = Math.max((originalTask.targetQuantity || 1) - (originalTask.completedQuantity || 0), 0);
+      if (!Number.isInteger(quantityAdded) || quantityAdded < 1 || quantityAdded > remaining || !description) {
+        return res.status(400).json({ success: false, message: 'Invalid task update or quantity exceeds the remaining target' });
+      }
+      originalTask.completedQuantity = (originalTask.completedQuantity || 0) + quantityAdded;
+      originalTask.status = originalTask.completedQuantity >= originalTask.targetQuantity ? 'completed' : 'inprogress';
+      originalTask.updates.push({ quantityAdded, description });
+      updatedTask = await originalTask.save();
+    } else {
+      updatedTask = await ContentTask.findByIdAndUpdate(req.params.id, taskFields, { new: true, runValidators: true });
+    }
 
     // Recalculate target progress if status, type, or employee changed, or if it was completed
     if ((originalTask.status === 'completed' || updatedTask.status === 'completed') && (originalTask.employeeId || updatedTask.employeeId)) {
