@@ -13,9 +13,9 @@ import SalesTask from "../models/SalesTask.js";
 import CreativeTask from "../models/CreativeTask.js";
 import Holiday from "../models/Holiday.js";
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // HELPER FUNCTIONS for task generation
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * Check if a given date is the 2nd Saturday of its month.
@@ -89,8 +89,8 @@ const getWeekNumber = (d) => {
  * Expand a daily target count into task entries for a single date.
  *
  * Rule:
- *   - If dailyTarget <= 5 ΓåÆ create `dailyTarget` individual tasks, each with targetQuantity=1
- *   - If dailyTarget > 5  ΓåÆ create 1 task with targetQuantity=dailyTarget
+ *   - If dailyTarget <= 5 Î“Ã¥Ã† create `dailyTarget` individual tasks, each with targetQuantity=1
+ *   - If dailyTarget > 5  Î“Ã¥Ã† create 1 task with targetQuantity=dailyTarget
  */
 const expandDailyTarget = (date, dailyTarget) => {
   return dailyTarget > 0
@@ -99,9 +99,9 @@ const expandDailyTarget = (date, dailyTarget) => {
 };
 
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // HELPER FUNCTIONS for task generation
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * Generate task date entries for DAILY frequency.
@@ -162,64 +162,239 @@ const generateMonthlyTasks = (targetGoal, workingDays) => {
   return distributeTasksEvenly(targetGoal, workingDays);
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
+const getCurrentMonthRange = (referenceDate) => {
+  const start = new Date(
+    referenceDate.getFullYear(),
+    referenceDate.getMonth(),
+    1,
+  );
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(
+    referenceDate.getFullYear(),
+    referenceDate.getMonth() + 1,
+    0,
+  );
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+};
+
+const calculateMonthlyTarget = (frequency, targetGoal, mathWorkingDays) => {
+  const goal = Number.parseInt(targetGoal, 10) || 0;
+  if (goal <= 0) return 0;
+
+  if (frequency === "Daily") {
+    return goal * mathWorkingDays.length;
+  }
+
+  if (frequency === "Weekly") {
+    return Math.round((goal * mathWorkingDays.length) / 6);
+  }
+
+  if (frequency === "Monthly") {
+    return goal;
+  }
+
+  return 0;
+};
+
+const getTaskGenerationContext = async (type, assignment, user, employeeId) => {
+  if (type === "SMM") {
+    const template = await TargetTemplate.findById(assignment.templateId);
+    const templateName = template?.name || "SMM Task";
+    const templateType = template?.name || "Reel Post";
+    const platform = assignment.platform || "Both";
+
+    return {
+      model: SmmTask,
+      templateName,
+      templateType,
+      baseQuery: {
+        employeeId,
+        companyId: assignment.companyId,
+        isAutomated: true,
+        title: templateName,
+        type: templateType,
+        platform,
+      },
+      buildDocument: (entry) => ({
+        title: templateName,
+        type: templateType,
+        platform,
+        status: "notstarted",
+        employeeId,
+        companyId: assignment.companyId,
+        weekLabel: `Week ${getWeekNumber(entry.date)}`,
+        date: entry.date.toISOString().split("T")[0],
+        dueDate: entry.date,
+        targetQuantity: entry.targetQuantity,
+        dailyExpiry: template?.dailyExpiry || false,
+        isAutomated: true,
+      }),
+    };
+  }
+
+  if (type === "SEO") {
+    const template = await SeoActivityTemplate.findById(assignment.seoTemplateId);
+    const templateName = template?.activityName || "SEO Task";
+    const templateType = template?.activityName || "Blog Post";
+
+    return {
+      model: SeoTask,
+      templateName,
+      templateType,
+      baseQuery: {
+        employeeId,
+        assignedTo: user.email,
+        companyId: assignment.companyId,
+        isAutomated: true,
+        title: templateName,
+        type: templateType,
+      },
+      buildDocument: (entry) => ({
+        title: templateName,
+        type: templateType,
+        status: "notstarted",
+        assignedTo: user.email,
+        employeeId,
+        companyId: assignment.companyId,
+        weekLabel: `Week ${getWeekNumber(entry.date)}`,
+        date: entry.date.toISOString().split("T")[0],
+        dueDate: entry.date,
+        targetQuantity: entry.targetQuantity,
+        dailyExpiry: template?.dailyExpiry || false,
+        isAutomated: true,
+      }),
+    };
+  }
+
+  if (type === "Content") {
+    const template = await ContentActivityTemplate.findById(
+      assignment.contentTemplateId,
+    );
+    const templateName = template?.activityName || "Content Task";
+    const templateType = template?.activityName || "Content Task";
+
+    return {
+      model: ContentTask,
+      templateName,
+      templateType,
+      baseQuery: {
+        employeeId,
+        assignedTo: user.email,
+        companyId: assignment.companyId,
+        isAutomated: true,
+        title: templateName,
+        type: templateType,
+      },
+      buildDocument: (entry) => ({
+        title: templateName,
+        type: templateType,
+        status: "notstarted",
+        assignedTo: user.email,
+        employeeId,
+        companyId: assignment.companyId,
+        weekLabel: `Week ${getWeekNumber(entry.date)}`,
+        date: entry.date.toISOString().split("T")[0],
+        dueDate: entry.date,
+        targetQuantity: entry.targetQuantity,
+        dailyExpiry: template?.dailyExpiry || false,
+        isAutomated: true,
+      }),
+    };
+  }
+
+  if (type === "Sales") {
+    const template = await SalesActivityTemplate.findById(
+      assignment.salesTemplateId,
+    );
+    const templateName = template?.activityName || "Sales Task";
+    const templateType = template?.activityName || "Sales Task";
+
+    return {
+      model: SalesTask,
+      templateName,
+      templateType,
+      baseQuery: {
+        employeeId,
+        assignedTo: user.email,
+        companyId: assignment.companyId,
+        isAutomated: true,
+        title: templateName,
+        type: templateType,
+      },
+      buildDocument: (entry) => ({
+        title: templateName,
+        type: templateType,
+        status: "notstarted",
+        assignedTo: user.email,
+        employeeId,
+        companyId: assignment.companyId,
+        weekLabel: `Week ${getWeekNumber(entry.date)}`,
+        date: entry.date.toISOString().split("T")[0],
+        dueDate: entry.date,
+        targetQuantity: entry.targetQuantity,
+        dailyExpiry: template?.dailyExpiry || false,
+        isAutomated: true,
+      }),
+    };
+  }
+
+  const template = await CreativeActivityTemplate.findById(
+    assignment.creativeTemplateId,
+  );
+  const templateName = template?.activityName || "Creative Task";
+  const templateType = template?.activityName || "Creative Task";
+
+  return {
+    model: CreativeTask,
+    templateName,
+    templateType,
+    baseQuery: {
+      employeeId,
+      assignedTo: user.email,
+      companyId: assignment.companyId,
+      isAutomated: true,
+      title: templateName,
+      type: templateType,
+    },
+    buildDocument: (entry) => ({
+      title: templateName,
+      type: templateType,
+      status: "notstarted",
+      assignedTo: user.email,
+      employeeId,
+      companyId: assignment.companyId,
+      weekLabel: `Week ${getWeekNumber(entry.date)}`,
+      date: entry.date.toISOString().split("T")[0],
+      dueDate: entry.date,
+      targetQuantity: entry.targetQuantity,
+      dailyExpiry: template?.dailyExpiry || false,
+      isAutomated: true,
+    }),
+  };
+};
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // MAIN FUNCTION: generateBatchTasks
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const generateBatchTasks = async (employeeId, companyId, assignments, type) => {
   try {
     const user = await User.findById(employeeId);
     if (!user) return;
 
-    // Clear previously automated tasks for these templates
-    if (type === "SMM") {
-      await SmmTask.deleteMany({
-        employeeId,
-        companyId,
-        isAutomated: true,
-        status: "notstarted",
-      });
-    } else if (type === "SEO") {
-      await SeoTask.deleteMany({
-        companyId,
-        assignedTo: user.email,
-        isAutomated: true,
-        status: "notstarted",
-      });
-    } else if (type === "Content") {
-      await ContentTask.deleteMany({
-        companyId,
-        assignedTo: user.email,
-        isAutomated: true,
-        status: "notstarted",
-      });
-    } else if (type === "Sales") {
-      await SalesTask.deleteMany({
-        companyId,
-        assignedTo: user.email,
-        isAutomated: true,
-        status: "notstarted",
-      });
-    } else if (type === "Creative") {
-      await CreativeTask.deleteMany({
-        companyId,
-        assignedTo: user.email,
-        isAutomated: true,
-        status: "notstarted",
-      });
-    }
-
     const tasksToInsert = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
+    const { start: monthStart, end: monthEnd } = getCurrentMonthRange(today);
 
-    // Fetch holidays ONCE for the entire batch — avoid repeated DB queries
     const allHolidays = await Holiday.find({});
     const holidaySet = buildHolidaySet(allHolidays);
 
-    // Pre-compute placement and math working days for the current month
     const placementWorkingDays = getWorkingDaysInMonth(
       currentYear,
       currentMonth,
@@ -228,125 +403,78 @@ const generateBatchTasks = async (employeeId, companyId, assignments, type) => {
     const mathWorkingDays = getWorkingDaysInMonth(
       currentYear,
       currentMonth,
-      null, // null skips the holiday check for math purposes
+      null,
     );
 
-    for (const a of assignments) {
-      if (!a.frequency) continue;
-      const targetGoal = parseInt(a.targetGoal) || 1;
+    for (const assignment of assignments) {
+      if (!assignment.frequency) continue;
 
-      // ─── Generate date entries based on frequency ───
-      let dateEntries = [];
+      const targetGoal = Number.parseInt(assignment.targetGoal, 10) || 0;
+      if (targetGoal <= 0) continue;
 
-      if (a.frequency === "Daily") {
-        // Daily: target is per working day
-        dateEntries = generateDailyTasks(
-          targetGoal,
-          mathWorkingDays,
-          placementWorkingDays,
-        );
-      } else if (a.frequency === "Weekly") {
-        // Weekly: target is per week, converted to monthly via working days
-        dateEntries = generateWeeklyTasks(
-          targetGoal,
-          mathWorkingDays,
-          placementWorkingDays,
-        );
-      } else if (a.frequency === "Monthly") {
-        // Monthly: target is for the entire month
-        dateEntries = generateMonthlyTasks(targetGoal, placementWorkingDays);
+      const { model, baseQuery, buildDocument } =
+        await getTaskGenerationContext(type, assignment, user, employeeId);
+
+      const monthlyTarget = calculateMonthlyTarget(
+        assignment.frequency,
+        targetGoal,
+        mathWorkingDays,
+      );
+
+      const existingTasks = await model
+        .find({
+          ...baseQuery,
+          dueDate: { $gte: monthStart, $lte: monthEnd },
+        })
+        .lean();
+
+      const tasksToKeep = existingTasks.filter((task) => {
+        const taskDueDate = task.dueDate ? new Date(task.dueDate) : null;
+        const isTodayOrLater = taskDueDate ? taskDueDate >= today : false;
+        if (!isTodayOrLater) return true;
+        return task.status === 'completed' || task.status === 'inprogress';
+      });
+
+      const tasksToDelete = existingTasks.filter((task) => {
+        const taskDueDate = task.dueDate ? new Date(task.dueDate) : null;
+        const isTodayOrLater = taskDueDate ? taskDueDate >= today : false;
+        return isTodayOrLater && task.status === 'notstarted';
+      });
+
+      if (tasksToDelete.length > 0) {
+        await model.deleteMany({
+          _id: { $in: tasksToDelete.map((task) => task._id) },
+        });
       }
 
-      // ─── Resolve template name for task title/type ───
-      let templateName = "Task";
-      let templateType = "Post";
-      let dailyExpiry = false;
-      if (type === "SMM") {
-        const template = await TargetTemplate.findById(a.templateId);
-        templateName = template?.name || "SMM Task";
-        templateType = template?.name || "Reel Post";
-        dailyExpiry = template?.dailyExpiry || false;
-      } else if (type === "SEO") {
-        const template = await SeoActivityTemplate.findById(a.seoTemplateId);
-        templateName = template?.activityName || "SEO Task";
-        templateType = template?.activityName || "Blog Post";
-        dailyExpiry = template?.dailyExpiry || false;
-      } else if (type === "Content") {
-        const template = await ContentActivityTemplate.findById(
-          a.contentTemplateId,
-        );
-        templateName = template?.activityName || "Content Task";
-        templateType = template?.activityName || "Content Task";
-        dailyExpiry = template?.dailyExpiry || false;
-      } else if (type === "Sales") {
-        const template = await SalesActivityTemplate.findById(
-          a.salesTemplateId,
-        );
-        templateName = template?.activityName || "Sales Task";
-        templateType = template?.activityName || "Sales Task";
-        dailyExpiry = template?.dailyExpiry || false;
-      } else if (type === "Creative") {
-        const template = await CreativeActivityTemplate.findById(
-          a.creativeTemplateId,
-        );
-        templateName = template?.activityName || "Creative Task";
-        templateType = template?.activityName || "Creative Task";
-        dailyExpiry = template?.dailyExpiry || false;
-      }
+      const retainedTargetQuantity = tasksToKeep.reduce(
+        (sum, task) => sum + (Number(task.targetQuantity) || 0),
+        0,
+      );
 
-      // ─── Build task objects from date entries ───
+      const remainingTarget = Math.max(monthlyTarget - retainedTargetQuantity, 0);
+      if (remainingTarget <= 0) continue;
+
+      const futureWorkingDays = placementWorkingDays.filter(
+        (day) => day >= today,
+      );
+      if (futureWorkingDays.length === 0) continue;
+
+      const dateEntries = generateMonthlyTasks(remainingTarget, futureWorkingDays);
       for (const entry of dateEntries) {
-        const d = entry.date;
-        const qty = entry.targetQuantity;
-        const weekLabel = `Week ${getWeekNumber(d)}`;
-
-        let title = templateName;
-
-        if (type === "SMM") {
-          tasksToInsert.push({
-            title,
-            type: templateType,
-            platform: a.platform || "Both",
-            status: "notstarted",
-            employeeId,
-            companyId,
-            weekLabel,
-            date: d.toISOString().split("T")[0],
-            dueDate: d,
-            targetQuantity: qty,
-            dailyExpiry,
-            isAutomated: true,
-          });
-        } else {
-          tasksToInsert.push({
-            title,
-            type: templateType,
-            status: "notstarted",
-            assignedTo: user.email,
-            employeeId,
-            companyId,
-            weekLabel,
-            date: d.toISOString().split("T")[0],
-            dueDate: d,
-            targetQuantity: qty,
-            dailyExpiry,
-            isAutomated: true,
-          });
-        }
+        tasksToInsert.push(buildDocument(entry));
       }
     }
 
-    // ─── Bulk insert all generated tasks ───
     if (tasksToInsert.length > 0) {
-      if (type === "SMM") await SmmTask.insertMany(tasksToInsert);
-      else if (type === "SEO") await SeoTask.insertMany(tasksToInsert);
-      else if (type === "Content") await ContentTask.insertMany(tasksToInsert);
-      else if (type === "Sales") await SalesTask.insertMany(tasksToInsert);
-      else if (type === "Creative")
-        await CreativeTask.insertMany(tasksToInsert);
+      if (type === 'SMM') await SmmTask.insertMany(tasksToInsert);
+      else if (type === 'SEO') await SeoTask.insertMany(tasksToInsert);
+      else if (type === 'Content') await ContentTask.insertMany(tasksToInsert);
+      else if (type === 'Sales') await SalesTask.insertMany(tasksToInsert);
+      else if (type === 'Creative') await CreativeTask.insertMany(tasksToInsert);
     }
   } catch (err) {
-    console.error("Error generating tasks:", err);
+    console.error('Error generating tasks:', err);
   }
 };
 
