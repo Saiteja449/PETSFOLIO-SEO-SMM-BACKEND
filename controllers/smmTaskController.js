@@ -58,6 +58,10 @@ export const getSmmTasks = async (req, res) => {
     if (weekLabel) query.weekLabel = weekLabel;
 
     const tasks = await SmmTask.find(query).sort({ createdAt: -1 });
+    await Promise.all(tasks.filter((task) => task.completedQuantity > 0 && task.updates.length === 0 && task.url).map(async (task) => {
+      task.updates.push({ quantityAdded: task.completedQuantity, description: task.url, date: task.updatedAt || task.createdAt });
+      await task.save();
+    }));
 
     res.status(200).json({ success: true, count: tasks.length, data: tasks });
   } catch (error) {
@@ -127,9 +131,11 @@ export const updateSmmTask = async (req, res) => {
 
     const { newUpdate, ...taskFields } = req.body;
     let updatedTask;
-    if (newUpdate) {
-      const quantityAdded = Number(newUpdate.quantityAdded);
-      const description = String(newUpdate.description || '').trim();
+    const hasLegacyQuantityUpdate = originalTask.targetQuantity > 1 && taskFields.completedQuantity !== undefined;
+    if (newUpdate || hasLegacyQuantityUpdate) {
+      const requestedQuantity = newUpdate ? Number(newUpdate.quantityAdded) : Number(taskFields.completedQuantity);
+      const quantityAdded = newUpdate ? requestedQuantity : requestedQuantity - (originalTask.completedQuantity || 0);
+      const description = String(newUpdate?.description || taskFields.url || taskFields.description || '').trim();
       const remaining = Math.max((originalTask.targetQuantity || 1) - (originalTask.completedQuantity || 0), 0);
       if (!Number.isInteger(quantityAdded) || quantityAdded < 1 || quantityAdded > remaining || !description) {
         return res.status(400).json({ success: false, message: 'Invalid task update or quantity exceeds the remaining target' });
@@ -137,6 +143,7 @@ export const updateSmmTask = async (req, res) => {
       originalTask.completedQuantity = (originalTask.completedQuantity || 0) + quantityAdded;
       originalTask.status = originalTask.completedQuantity >= originalTask.targetQuantity ? 'completed' : 'inprogress';
       originalTask.updates.push({ quantityAdded, description });
+      if (!newUpdate && taskFields.url) originalTask.url = taskFields.url;
       updatedTask = await originalTask.save();
     } else {
       updatedTask = await SmmTask.findByIdAndUpdate(req.params.id, taskFields, { new: true, runValidators: true });

@@ -8,6 +8,10 @@ import SeoTask from "./models/SeoTask.js";
 import ContentTask from "./models/ContentTask.js";
 import SalesTask from "./models/SalesTask.js";
 import CreativeTask from "./models/CreativeTask.js";
+import ContentActivityTemplate from "./models/ContentActivityTemplate.js";
+import SalesActivityTemplate from "./models/SalesActivityTemplate.js";
+import CreativeActivityTemplate from "./models/CreativeActivityTemplate.js";
+
 
 dotenv.config();
 
@@ -41,6 +45,15 @@ const clearData = async () => {
 
     await SeoActivityTemplate.deleteMany({});
     console.log("SeoActivityTemplate collection cleared.");
+
+    await ContentActivityTemplate.deleteMany({});
+    console.log("ContentActivityTemplate collection cleared.");
+
+    await SalesActivityTemplate.deleteMany({});
+    console.log("SalesActivityTemplate collection cleared.");
+
+    await CreativeActivityTemplate.deleteMany({});
+    console.log("CreativeActivityTemplate collection cleared.");
 
     console.log("All tasks and templates data cleared successfully!");
     process.exit(0);
