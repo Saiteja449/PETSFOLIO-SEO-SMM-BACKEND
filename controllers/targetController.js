@@ -400,14 +400,7 @@ export const generateBatchTasks = async (employeeId, companyId, assignments, typ
       currentMonth,
       holidaySet,
     );
-    const mathWorkingDays = getWorkingDaysInMonth(
-      currentYear,
-      currentMonth,
-      null,
-    );
-
     const futurePlacementDays = placementWorkingDays.filter((day) => day >= today);
-    const futureMathDays = mathWorkingDays.filter((day) => day >= today);
 
     for (const assignment of assignments) {
       if (!assignment.frequency) continue;
@@ -453,7 +446,7 @@ export const generateBatchTasks = async (employeeId, companyId, assignments, typ
         monthlyTarget = calculateMonthlyTarget(
           assignment.frequency,
           targetGoal,
-          futureMathDays,
+          futurePlacementDays,
         );
         retainedTargetQuantity = tasksToKeep
           .filter((task) => {
@@ -465,7 +458,7 @@ export const generateBatchTasks = async (employeeId, companyId, assignments, typ
         monthlyTarget = calculateMonthlyTarget(
           assignment.frequency,
           targetGoal,
-          mathWorkingDays,
+          placementWorkingDays,
         );
         retainedTargetQuantity = tasksToKeep.reduce(
           (sum, task) => sum + (Number(task.targetQuantity) || 0),
