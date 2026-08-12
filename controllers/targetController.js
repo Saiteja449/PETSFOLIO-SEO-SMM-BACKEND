@@ -406,6 +406,9 @@ export const generateBatchTasks = async (employeeId, companyId, assignments, typ
       null,
     );
 
+    const futurePlacementDays = placementWorkingDays.filter((day) => day >= today);
+    const futureMathDays = mathWorkingDays.filter((day) => day >= today);
+
     for (const assignment of assignments) {
       if (!assignment.frequency) continue;
 
@@ -414,12 +417,6 @@ export const generateBatchTasks = async (employeeId, companyId, assignments, typ
 
       const { model, baseQuery, buildDocument } =
         await getTaskGenerationContext(type, assignment, user, employeeId, companyId);
-
-      const monthlyTarget = calculateMonthlyTarget(
-        assignment.frequency,
-        targetGoal,
-        mathWorkingDays,
-      );
 
       const existingTasks = await model
         .find({
@@ -447,20 +444,42 @@ export const generateBatchTasks = async (employeeId, companyId, assignments, typ
         });
       }
 
-      const retainedTargetQuantity = tasksToKeep.reduce(
-        (sum, task) => sum + (Number(task.targetQuantity) || 0),
-        0,
-      );
+      // For Daily/Weekly: only care about future days (past doesn't affect per-day target)
+      // For Monthly: use full month target minus all retained tasks
+      let monthlyTarget;
+      let retainedTargetQuantity;
+
+      if (assignment.frequency === 'Daily' || assignment.frequency === 'Weekly') {
+        monthlyTarget = calculateMonthlyTarget(
+          assignment.frequency,
+          targetGoal,
+          futureMathDays,
+        );
+        retainedTargetQuantity = tasksToKeep
+          .filter((task) => {
+            const d = task.dueDate ? new Date(task.dueDate) : null;
+            return d && d >= today;
+          })
+          .reduce((sum, task) => sum + (Number(task.targetQuantity) || 0), 0);
+      } else {
+        monthlyTarget = calculateMonthlyTarget(
+          assignment.frequency,
+          targetGoal,
+          mathWorkingDays,
+        );
+        retainedTargetQuantity = tasksToKeep.reduce(
+          (sum, task) => sum + (Number(task.targetQuantity) || 0),
+          0,
+        );
+      }
 
       const remainingTarget = Math.max(monthlyTarget - retainedTargetQuantity, 0);
       if (remainingTarget <= 0) continue;
 
-      const futureWorkingDays = placementWorkingDays.filter(
-        (day) => day >= today,
-      );
-      if (futureWorkingDays.length === 0) continue;
+      if (futurePlacementDays.length === 0) continue;
 
-      const dateEntries = generateMonthlyTasks(remainingTarget, futureWorkingDays);
+      const dateEntries = generateMonthlyTasks(remainingTarget, futurePlacementDays);
+      if (dateEntries.length === 0) continue;
       for (const entry of dateEntries) {
         tasksToInsert.push(buildDocument(entry));
       }
