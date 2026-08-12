@@ -199,7 +199,7 @@ const calculateMonthlyTarget = (frequency, targetGoal, mathWorkingDays) => {
   return 0;
 };
 
-const getTaskGenerationContext = async (type, assignment, user, employeeId) => {
+const getTaskGenerationContext = async (type, assignment, user, employeeId, companyId) => {
   if (type === "SMM") {
     const template = await TargetTemplate.findById(assignment.templateId);
     const templateName = template?.name || "SMM Task";
@@ -212,7 +212,7 @@ const getTaskGenerationContext = async (type, assignment, user, employeeId) => {
       templateType,
       baseQuery: {
         employeeId,
-        companyId: assignment.companyId,
+        companyId,
         isAutomated: true,
         title: templateName,
         type: templateType,
@@ -224,7 +224,7 @@ const getTaskGenerationContext = async (type, assignment, user, employeeId) => {
         platform,
         status: "notstarted",
         employeeId,
-        companyId: assignment.companyId,
+        companyId,
         weekLabel: `Week ${getWeekNumber(entry.date)}`,
         date: entry.date.toISOString().split("T")[0],
         dueDate: entry.date,
@@ -247,7 +247,7 @@ const getTaskGenerationContext = async (type, assignment, user, employeeId) => {
       baseQuery: {
         employeeId,
         assignedTo: user.email,
-        companyId: assignment.companyId,
+        companyId,
         isAutomated: true,
         title: templateName,
         type: templateType,
@@ -258,7 +258,7 @@ const getTaskGenerationContext = async (type, assignment, user, employeeId) => {
         status: "notstarted",
         assignedTo: user.email,
         employeeId,
-        companyId: assignment.companyId,
+        companyId,
         weekLabel: `Week ${getWeekNumber(entry.date)}`,
         date: entry.date.toISOString().split("T")[0],
         dueDate: entry.date,
@@ -283,7 +283,7 @@ const getTaskGenerationContext = async (type, assignment, user, employeeId) => {
       baseQuery: {
         employeeId,
         assignedTo: user.email,
-        companyId: assignment.companyId,
+        companyId,
         isAutomated: true,
         title: templateName,
         type: templateType,
@@ -294,7 +294,7 @@ const getTaskGenerationContext = async (type, assignment, user, employeeId) => {
         status: "notstarted",
         assignedTo: user.email,
         employeeId,
-        companyId: assignment.companyId,
+        companyId,
         weekLabel: `Week ${getWeekNumber(entry.date)}`,
         date: entry.date.toISOString().split("T")[0],
         dueDate: entry.date,
@@ -319,7 +319,7 @@ const getTaskGenerationContext = async (type, assignment, user, employeeId) => {
       baseQuery: {
         employeeId,
         assignedTo: user.email,
-        companyId: assignment.companyId,
+        companyId,
         isAutomated: true,
         title: templateName,
         type: templateType,
@@ -330,7 +330,7 @@ const getTaskGenerationContext = async (type, assignment, user, employeeId) => {
         status: "notstarted",
         assignedTo: user.email,
         employeeId,
-        companyId: assignment.companyId,
+        companyId,
         weekLabel: `Week ${getWeekNumber(entry.date)}`,
         date: entry.date.toISOString().split("T")[0],
         dueDate: entry.date,
@@ -354,7 +354,7 @@ const getTaskGenerationContext = async (type, assignment, user, employeeId) => {
     baseQuery: {
       employeeId,
       assignedTo: user.email,
-      companyId: assignment.companyId,
+      companyId,
       isAutomated: true,
       title: templateName,
       type: templateType,
@@ -365,7 +365,7 @@ const getTaskGenerationContext = async (type, assignment, user, employeeId) => {
       status: "notstarted",
       assignedTo: user.email,
       employeeId,
-      companyId: assignment.companyId,
+      companyId,
       weekLabel: `Week ${getWeekNumber(entry.date)}`,
       date: entry.date.toISOString().split("T")[0],
       dueDate: entry.date,
@@ -413,7 +413,7 @@ export const generateBatchTasks = async (employeeId, companyId, assignments, typ
       if (targetGoal <= 0) continue;
 
       const { model, baseQuery, buildDocument } =
-        await getTaskGenerationContext(type, assignment, user, employeeId);
+        await getTaskGenerationContext(type, assignment, user, employeeId, companyId);
 
       const monthlyTarget = calculateMonthlyTarget(
         assignment.frequency,
