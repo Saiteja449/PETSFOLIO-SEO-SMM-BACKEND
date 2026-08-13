@@ -8,9 +8,14 @@ import {
   deleteEmployee,
   updateEmployeePassword,
   changePassword,
-  updateEmployee
+  updateEmployee,
+  createIntern,
+  getMyInterns,
+  updateMyIntern,
+  deleteMyIntern,
+  updateMyInternPassword
 } from '../controllers/authController.js';
-import { protect, admin } from '../middleware/authMiddleware.js';
+import { protect, admin, employee } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -29,5 +34,17 @@ router.route('/employees/:id')
 
 router.route('/employees/:id/password')
   .put(protect, admin, updateEmployeePassword);
+
+// Employee Intern Management
+router.route('/my-interns')
+  .post(protect, employee, createIntern)
+  .get(protect, employee, getMyInterns);
+
+router.route('/my-interns/:id')
+  .put(protect, employee, updateMyIntern)
+  .delete(protect, employee, deleteMyIntern);
+
+router.route('/my-interns/:id/password')
+  .put(protect, employee, updateMyInternPassword);
 
 export default router;

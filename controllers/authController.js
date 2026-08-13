@@ -153,7 +153,9 @@ const createEmployee = async (req, res) => {
 // @access  Private/Admin
 const getEmployees = async (req, res) => {
   try {
-    const employees = await User.find({ role: { $in: ["employee", "intern"] } }).select("-password");
+    const employees = await User.find({ role: { $in: ["employee", "intern"] } })
+      .select("-password")
+      .populate("createdBy", "name email");
     res.json({ success: true, data: employees });
   } catch (error) {
     console.error(error);
@@ -278,6 +280,174 @@ const updateEmployee = async (req, res) => {
   }
 };
 
+// @desc    Create a new intern (Employee Action)
+// @route   POST /api/auth/my-interns
+// @access  Private/Employee
+const createIntern = async (req, res) => {
+  const { name, email, department, password, assignedCompanies } = req.body;
+
+  try {
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      return res
+        .status(400)
+        .json({ success: false, message: "User already exists" });
+    }
+
+    // Ensure employee only assigns companies they are assigned to
+    const employee = await User.findById(req.user._id);
+    let validAssignedCompanies = [];
+    if (assignedCompanies && Array.isArray(assignedCompanies)) {
+      validAssignedCompanies = assignedCompanies.filter(cId => 
+        employee.assignedCompanies.includes(cId)
+      );
+    }
+
+    const defaultPassword = "Welcome123";
+
+    const intern = await User.create({
+      name,
+      email,
+      password: password || defaultPassword,
+      role: "intern", // Strictly intern
+      department: department || ["seo"],
+      assignedCompanies: validAssignedCompanies,
+      createdBy: req.user._id
+    });
+
+    res.status(201).json({
+      success: true,
+      _id: intern._id,
+      name: intern.name,
+      email: intern.email,
+      role: intern.role,
+      department: intern.department,
+      assignedCompanies: intern.assignedCompanies,
+      createdBy: intern.createdBy
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// @desc    Get interns created by current employee
+// @route   GET /api/auth/my-interns
+// @access  Private/Employee
+const getMyInterns = async (req, res) => {
+  try {
+    const interns = await User.find({ 
+      role: "intern", 
+      createdBy: req.user._id 
+    }).select("-password");
+    res.json({ success: true, data: interns });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// @desc    Update intern created by current employee
+// @route   PUT /api/auth/my-interns/:id
+// @access  Private/Employee
+const updateMyIntern = async (req, res) => {
+  const { name, email, department, assignedCompanies } = req.body;
+
+  try {
+    const intern = await User.findOne({ 
+      _id: req.params.id, 
+      createdBy: req.user._id,
+      role: "intern"
+    });
+
+    if (!intern) {
+      return res.status(404).json({ success: false, message: "Intern not found or not authorized" });
+    }
+
+    if (name) intern.name = name;
+    if (email) {
+      const emailExists = await User.findOne({ email, _id: { $ne: intern._id } });
+      if (emailExists) {
+        return res.status(400).json({ success: false, message: "Email already in use" });
+      }
+      intern.email = email;
+    }
+    if (department) intern.department = department;
+    
+    if (assignedCompanies) {
+      // Ensure employee only assigns companies they are assigned to
+      const employee = await User.findById(req.user._id);
+      intern.assignedCompanies = assignedCompanies.filter(cId => 
+        employee.assignedCompanies.includes(cId)
+      );
+    }
+
+    const updatedIntern = await intern.save();
+
+    res.json({
+      success: true,
+      _id: updatedIntern._id,
+      name: updatedIntern.name,
+      email: updatedIntern.email,
+      role: updatedIntern.role,
+      department: updatedIntern.department,
+      assignedCompanies: updatedIntern.assignedCompanies,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// @desc    Delete intern created by current employee
+// @route   DELETE /api/auth/my-interns/:id
+// @access  Private/Employee
+const deleteMyIntern = async (req, res) => {
+  try {
+    const intern = await User.findOne({ 
+      _id: req.params.id, 
+      createdBy: req.user._id,
+      role: "intern"
+    });
+
+    if (!intern) {
+      return res.status(404).json({ success: false, message: "Intern not found or not authorized" });
+    }
+
+    await User.deleteOne({ _id: intern._id });
+    res.json({ success: true, message: "Intern removed" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// @desc    Update password for intern created by current employee
+// @route   PUT /api/auth/my-interns/:id/password
+// @access  Private/Employee
+const updateMyInternPassword = async (req, res) => {
+  const { password } = req.body;
+
+  try {
+    const intern = await User.findOne({ 
+      _id: req.params.id, 
+      createdBy: req.user._id,
+      role: "intern"
+    });
+
+    if (!intern) {
+      return res.status(404).json({ success: false, message: "Intern not found or not authorized" });
+    }
+
+    intern.password = password;
+    await intern.save();
+    res.json({ success: true, message: "Password updated successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 export {
   loginUser,
   logoutUser,
@@ -288,4 +458,9 @@ export {
   updateEmployeePassword,
   changePassword,
   updateEmployee,
+  createIntern,
+  getMyInterns,
+  updateMyIntern,
+  deleteMyIntern,
+  updateMyInternPassword
 };
