@@ -303,6 +303,13 @@ const createIntern = async (req, res) => {
       );
     }
 
+    let validDepartments = [];
+    if (department && Array.isArray(department)) {
+      validDepartments = department.filter(d => 
+        employee.department.includes(d)
+      );
+    }
+
     const defaultPassword = "Welcome123";
 
     const intern = await User.create({
@@ -310,7 +317,7 @@ const createIntern = async (req, res) => {
       email,
       password: password || defaultPassword,
       role: "intern", // Strictly intern
-      department: department || ["seo"],
+      department: validDepartments.length > 0 ? validDepartments : employee.department,
       assignedCompanies: validAssignedCompanies,
       createdBy: req.user._id
     });
@@ -372,14 +379,20 @@ const updateMyIntern = async (req, res) => {
       }
       intern.email = email;
     }
-    if (department) intern.department = department;
-    
-    if (assignedCompanies) {
-      // Ensure employee only assigns companies they are assigned to
+    if (assignedCompanies || department) {
       const employee = await User.findById(req.user._id);
-      intern.assignedCompanies = assignedCompanies.filter(cId => 
-        employee.assignedCompanies.includes(cId)
-      );
+      
+      if (assignedCompanies) {
+        intern.assignedCompanies = assignedCompanies.filter(cId => 
+          employee.assignedCompanies.includes(cId)
+        );
+      }
+      
+      if (department) {
+        intern.department = department.filter(d => 
+          employee.department.includes(d)
+        );
+      }
     }
 
     const updatedIntern = await intern.save();
