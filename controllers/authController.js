@@ -298,8 +298,9 @@ const createIntern = async (req, res) => {
     const employee = await User.findById(req.user._id);
     let validAssignedCompanies = [];
     if (assignedCompanies && Array.isArray(assignedCompanies)) {
+      const empCompStrings = employee.assignedCompanies.map(id => id.toString());
       validAssignedCompanies = assignedCompanies.filter(cId => 
-        employee.assignedCompanies.includes(cId)
+        empCompStrings.includes(cId.toString())
       );
     }
 
@@ -383,8 +384,9 @@ const updateMyIntern = async (req, res) => {
       const employee = await User.findById(req.user._id);
       
       if (assignedCompanies) {
+        const empCompStrings = employee.assignedCompanies.map(id => id.toString());
         intern.assignedCompanies = assignedCompanies.filter(cId => 
-          employee.assignedCompanies.includes(cId)
+          empCompStrings.includes(cId.toString())
         );
       }
       
