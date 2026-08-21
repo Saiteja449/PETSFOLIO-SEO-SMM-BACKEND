@@ -111,7 +111,8 @@ const setupAdmin = async (req, res) => {
 // @route   POST /api/auth/employees
 // @access  Private/Admin
 const createEmployee = async (req, res) => {
-  const { name, email, role, department, password, assignedCompanies } = req.body;
+  const { name, email, role, department, password, assignedCompanies } =
+    req.body;
 
   try {
     const userExists = await User.findOne({ email });
@@ -249,14 +250,18 @@ const updateEmployee = async (req, res) => {
     const user = await User.findById(req.params.id);
 
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
 
     if (name) user.name = name;
     if (email) {
       const emailExists = await User.findOne({ email, _id: { $ne: user._id } });
       if (emailExists) {
-        return res.status(400).json({ success: false, message: "Email already in use" });
+        return res
+          .status(400)
+          .json({ success: false, message: "Email already in use" });
       }
       user.email = email;
     }
@@ -299,16 +304,18 @@ const createIntern = async (req, res) => {
     const employee = await User.findById(req.user._id);
     let validAssignedCompanies = [];
     if (assignedCompanies && Array.isArray(assignedCompanies)) {
-      const empCompStrings = employee.assignedCompanies.map(id => id.toString());
-      validAssignedCompanies = assignedCompanies.filter(cId => 
-        empCompStrings.includes(cId.toString())
+      const empCompStrings = employee.assignedCompanies.map((id) =>
+        id.toString(),
+      );
+      validAssignedCompanies = assignedCompanies.filter((cId) =>
+        empCompStrings.includes(cId.toString()),
       );
     }
 
     let validDepartments = [];
     if (department && Array.isArray(department)) {
-      validDepartments = department.filter(d => 
-        employee.department.includes(d)
+      validDepartments = department.filter((d) =>
+        employee.department.includes(d),
       );
     }
 
@@ -319,9 +326,10 @@ const createIntern = async (req, res) => {
       email,
       password: password || defaultPassword,
       role: "intern", // Strictly intern
-      department: validDepartments.length > 0 ? validDepartments : employee.department,
+      department:
+        validDepartments.length > 0 ? validDepartments : employee.department,
       assignedCompanies: validAssignedCompanies,
-      createdBy: req.user._id
+      createdBy: req.user._id,
     });
 
     res.status(201).json({
@@ -332,7 +340,7 @@ const createIntern = async (req, res) => {
       role: intern.role,
       department: intern.department,
       assignedCompanies: intern.assignedCompanies,
-      createdBy: intern.createdBy
+      createdBy: intern.createdBy,
     });
   } catch (error) {
     console.error(error);
@@ -345,9 +353,8 @@ const createIntern = async (req, res) => {
 // @access  Private/Employee
 const getMyInterns = async (req, res) => {
   try {
-    const interns = await User.find({ 
-      role: "intern", 
-      createdBy: req.user._id 
+    const interns = await User.find({
+      role: "intern",
     }).select("-password");
     res.json({ success: true, data: interns });
   } catch (error) {
@@ -363,37 +370,48 @@ const updateMyIntern = async (req, res) => {
   const { name, email, department, assignedCompanies } = req.body;
 
   try {
-    const intern = await User.findOne({ 
-      _id: req.params.id, 
-      createdBy: req.user._id,
-      role: "intern"
+    const intern = await User.findOne({
+      _id: req.params.id,
+      role: "intern",
     });
 
     if (!intern) {
-      return res.status(404).json({ success: false, message: "Intern not found or not authorized" });
+      return res
+        .status(404)
+        .json({
+          success: false,
+          message: "Intern not found or not authorized",
+        });
     }
 
     if (name) intern.name = name;
     if (email) {
-      const emailExists = await User.findOne({ email, _id: { $ne: intern._id } });
+      const emailExists = await User.findOne({
+        email,
+        _id: { $ne: intern._id },
+      });
       if (emailExists) {
-        return res.status(400).json({ success: false, message: "Email already in use" });
+        return res
+          .status(400)
+          .json({ success: false, message: "Email already in use" });
       }
       intern.email = email;
     }
     if (assignedCompanies || department) {
       const employee = await User.findById(req.user._id);
-      
+
       if (assignedCompanies) {
-        const empCompStrings = employee.assignedCompanies.map(id => id.toString());
-        intern.assignedCompanies = assignedCompanies.filter(cId => 
-          empCompStrings.includes(cId.toString())
+        const empCompStrings = employee.assignedCompanies.map((id) =>
+          id.toString(),
+        );
+        intern.assignedCompanies = assignedCompanies.filter((cId) =>
+          empCompStrings.includes(cId.toString()),
         );
       }
-      
+
       if (department) {
-        intern.department = department.filter(d => 
-          employee.department.includes(d)
+        intern.department = department.filter((d) =>
+          employee.department.includes(d),
         );
       }
     }
@@ -420,14 +438,18 @@ const updateMyIntern = async (req, res) => {
 // @access  Private/Employee
 const deleteMyIntern = async (req, res) => {
   try {
-    const intern = await User.findOne({ 
-      _id: req.params.id, 
-      createdBy: req.user._id,
-      role: "intern"
+    const intern = await User.findOne({
+      _id: req.params.id,
+      role: "intern",
     });
 
     if (!intern) {
-      return res.status(404).json({ success: false, message: "Intern not found or not authorized" });
+      return res
+        .status(404)
+        .json({
+          success: false,
+          message: "Intern not found or not authorized",
+        });
     }
 
     await User.deleteOne({ _id: intern._id });
@@ -445,14 +467,18 @@ const updateMyInternPassword = async (req, res) => {
   const { password } = req.body;
 
   try {
-    const intern = await User.findOne({ 
-      _id: req.params.id, 
-      createdBy: req.user._id,
-      role: "intern"
+    const intern = await User.findOne({
+      _id: req.params.id,
+      role: "intern",
     });
 
     if (!intern) {
-      return res.status(404).json({ success: false, message: "Intern not found or not authorized" });
+      return res
+        .status(404)
+        .json({
+          success: false,
+          message: "Intern not found or not authorized",
+        });
     }
 
     intern.password = password;
@@ -472,82 +498,50 @@ const reassignAndDeleteIntern = async (req, res) => {
   const internIdToDelete = req.params.id;
 
   try {
-    const internToDelete = await User.findOne({ 
-      _id: internIdToDelete, 
-      createdBy: req.user._id,
-      role: "intern"
+    const internToDelete = await User.findOne({
+      _id: internIdToDelete,
+      role: "intern",
     });
 
     if (!internToDelete) {
-      return res.status(404).json({ success: false, message: "Intern to delete not found or not authorized" });
+      return res
+        .status(404)
+        .json({
+          success: false,
+          message: "Intern to delete not found or not authorized",
+        });
     }
+
+    // Helper to safely update a task model if it exists
+    const safeUpdate = async (modelName, filter, update, options) => {
+      if (mongoose.modelNames().includes(modelName)) {
+        return await mongoose.model(modelName).updateMany(filter, update, options);
+      } else {
+        console.warn(`Model ${modelName} not found, skipping update.`);
+        return null;
+      }
+    };
 
     if (newInternId) {
       const newIntern = await User.findOne({
         _id: newInternId,
-        createdBy: req.user._id,
-        role: "intern"
+        role: "intern",
       });
 
       if (!newIntern) {
-        return res.status(404).json({ success: false, message: "New intern not found or not authorized" });
+        return res
+          .status(404)
+          .json({
+            success: false,
+            message: "New intern not found or not authorized",
+          });
       }
 
-      // 1. Reassign subtasks in SmmTask
-      await mongoose.model('SmmTask').updateMany(
-        { "subTasks.assignedToInternId": internIdToDelete },
-        { $set: { "subTasks.$[elem].assignedToInternId": newInternId } },
-        { arrayFilters: [{ "elem.assignedToInternId": internIdToDelete }] }
-      );
-      
-      // 2. SeoTask
-      await mongoose.model('SeoTask').updateMany(
-        { "subTasks.assignedToInternId": internIdToDelete },
-        { $set: { "subTasks.$[elem].assignedToInternId": newInternId } },
-        { arrayFilters: [{ "elem.assignedToInternId": internIdToDelete }] }
-      );
-      
-      // 3. ContentTask
-      await mongoose.model('ContentTask').updateMany(
-        { "subTasks.assignedToInternId": internIdToDelete },
-        { $set: { "subTasks.$[elem].assignedToInternId": newInternId } },
-        { arrayFilters: [{ "elem.assignedToInternId": internIdToDelete }] }
-      );
-
-      // 4. CreativeTask
-      await mongoose.model('CreativeTask').updateMany(
-        { "subTasks.assignedToInternId": internIdToDelete },
-        { $set: { "subTasks.$[elem].assignedToInternId": newInternId } },
-        { arrayFilters: [{ "elem.assignedToInternId": internIdToDelete }] }
-      );
-
-      // 5. SalesTask
-      await mongoose.model('SalesTask').updateMany(
-        { "subTasks.assignedToInternId": internIdToDelete },
-        { $set: { "subTasks.$[elem].assignedToInternId": newInternId } },
-        { arrayFilters: [{ "elem.assignedToInternId": internIdToDelete }] }
-      );
+      // Reassign subtasks
+      await safeUpdate("Task", { "subTasks.assignedToInternId": internIdToDelete }, { $set: { "subTasks.$[elem].assignedToInternId": newInternId } }, { arrayFilters: [{ "elem.assignedToInternId": internIdToDelete }] });
     } else {
-      await mongoose.model('SmmTask').updateMany(
-        { "subTasks.assignedToInternId": internIdToDelete },
-        { $pull: { subTasks: { assignedToInternId: internIdToDelete } } }
-      );
-      await mongoose.model('SeoTask').updateMany(
-        { "subTasks.assignedToInternId": internIdToDelete },
-        { $pull: { subTasks: { assignedToInternId: internIdToDelete } } }
-      );
-      await mongoose.model('ContentTask').updateMany(
-        { "subTasks.assignedToInternId": internIdToDelete },
-        { $pull: { subTasks: { assignedToInternId: internIdToDelete } } }
-      );
-      await mongoose.model('CreativeTask').updateMany(
-        { "subTasks.assignedToInternId": internIdToDelete },
-        { $pull: { subTasks: { assignedToInternId: internIdToDelete } } }
-      );
-      await mongoose.model('SalesTask').updateMany(
-        { "subTasks.assignedToInternId": internIdToDelete },
-        { $pull: { subTasks: { assignedToInternId: internIdToDelete } } }
-      );
+      // Delete subtasks
+      await safeUpdate("Task", { "subTasks.assignedToInternId": internIdToDelete }, { $pull: { subTasks: { assignedToInternId: internIdToDelete } } });
     }
 
     await User.deleteOne({ _id: internIdToDelete });
@@ -573,5 +567,5 @@ export {
   updateMyIntern,
   deleteMyIntern,
   updateMyInternPassword,
-  reassignAndDeleteIntern
+  reassignAndDeleteIntern,
 };

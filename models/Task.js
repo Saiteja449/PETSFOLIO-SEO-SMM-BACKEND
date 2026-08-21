@@ -77,6 +77,7 @@ const taskSchema = new mongoose.Schema(
     updates: [{
       quantityAdded: { type: Number, required: true, min: 1 },
       description: { type: String, required: true, trim: true },
+      url: { type: String, trim: true },
       date: { type: Date, default: Date.now },
     }],
     isAutomated: {
@@ -114,7 +115,14 @@ const taskSchema = new mongoose.Schema(
         name: String,
         role: String
       },
-      completedAt: Date
+      submissions: [{
+        quantityAdded: { type: Number, required: true, min: 1 },
+        proofUrl: { type: String },
+        notes: { type: String },
+        submittedAt: { type: Date, default: Date.now },
+      }],
+      completedAt: Date,
+      updatedAt: Date
     }],
   },
   {

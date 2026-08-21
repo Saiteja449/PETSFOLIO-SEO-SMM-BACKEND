@@ -80,6 +80,13 @@ const EmployeeTargetSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    delegations: [
+      {
+        internId: { type: String, required: true },
+        targetQuantity: { type: Number, required: true },
+        notes: { type: String }
+      }
+    ]
   },
   { timestamps: true },
 );

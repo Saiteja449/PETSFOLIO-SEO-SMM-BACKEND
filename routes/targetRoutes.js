@@ -11,6 +11,8 @@ import {
   getCompanyEmployeeTargets,
   getTrackedVideos,
   claimVideo,
+  addDelegation,
+  removeDelegation
 } from "../controllers/targetController.js";
 
 const router = express.Router();
@@ -25,6 +27,10 @@ router.post("/assign", assignTarget);
 router.post("/assign-batch", assignBatchTargets);
 router.get("/employee/:employeeId", getEmployeeTargets);
 router.get("/company/:companyId/employees", getCompanyEmployeeTargets);
+
+// Automated Delegation Routes
+router.post("/:id/delegate", addDelegation);
+router.delete("/:id/delegate/:internId", removeDelegation);
 
 // SMM specific video tracking
 router.get("/videos/:companyId", getTrackedVideos);

@@ -263,7 +263,28 @@ export const generateBatchTasks = async (employeeId, companyId, assignments) => 
 
       const adjustedEntries = taskEntries.filter((e) => e.targetQuantity > 0);
 
-      const newDocs = adjustedEntries.map(buildDocument);
+      // Fetch the corresponding EmployeeTarget to get any automated delegations
+      const currentTarget = await EmployeeTarget.findOne({
+        employeeId,
+        companyId,
+        templateId: assignment.templateId || assignment._id,
+        startDate: { $lte: monthEnd },
+        endDate: { $gte: monthStart }
+      });
+
+      const newDocs = adjustedEntries.map((entry) => {
+        const doc = buildDocument(entry);
+        if (currentTarget && currentTarget.delegations && currentTarget.delegations.length > 0) {
+          doc.subTasks = currentTarget.delegations.map(d => ({
+            assignedToInternId: d.internId,
+            assignedByEmployeeId: employeeId,
+            targetQuantity: d.targetQuantity,
+            notes: d.notes || '',
+            status: 'notstarted'
+          }));
+        }
+        return doc;
+      });
       tasksToInsert.push(...newDocs);
     }
 
@@ -454,7 +475,13 @@ export const getEmployeeTargets = async (req, res) => {
     const { employeeId } = req.params;
     const { targetType, month, year, companyId } = req.query;
 
-    const query = { employeeId };
+    const query = {
+      $or: [
+        { employeeId },
+        { "delegations.internId": employeeId }
+      ]
+    };
+    
     if (companyId) {
       query.companyId = companyId;
     }
@@ -542,6 +569,141 @@ export const claimVideo = async (req, res) => {
 
     res.status(200).json({ success: true, data: video });
   } catch (error) {
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTOMATED DELEGATION (Employee splits target to Intern)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const addDelegation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { internId, targetQuantity, notes } = req.body;
+    
+    if (!internId || !targetQuantity) {
+      return res.status(400).json({ success: false, message: "Intern ID and target quantity are required." });
+    }
+
+    const target = await EmployeeTarget.findById(id).populate('templateId');
+    if (!target) return res.status(404).json({ success: false, message: "Target not found" });
+
+    // Ensure only the assigned employee (or admin) can delegate
+    if (req.user && req.user.role === 'employee' && target.employeeId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: "Unauthorized to delegate this target" });
+    }
+
+    // Check if intern exists
+    const intern = await User.findById(internId);
+    if (!intern || intern.role !== 'intern') {
+      return res.status(404).json({ success: false, message: "Intern not found" });
+    }
+
+    // Add or update delegation rule on the target
+    const existingDelegationIndex = target.delegations.findIndex(d => d.internId === internId);
+    if (existingDelegationIndex > -1) {
+      target.delegations[existingDelegationIndex].targetQuantity = targetQuantity;
+      target.delegations[existingDelegationIndex].notes = notes;
+    } else {
+      target.delegations.push({ internId, targetQuantity, notes });
+    }
+    await target.save();
+
+    // Retroactively inject subtasks into uncompleted tasks for this target's timeframe
+    const department = target.templateId?.department || target.targetType || "SMM";
+    const templateName = target.templateId?.name || `${department} Task`;
+    
+    const baseQuery = {
+      employeeId: target.employeeId,
+      companyId: target.companyId,
+      isAutomated: true,
+      department,
+      title: templateName,
+      type: templateName,
+      ...(department === 'SMM' && { platform: target.platform || "Both" })
+    };
+
+    const tasksToUpdate = await Task.find({
+      ...baseQuery,
+      status: { $ne: 'completed' },
+      dueDate: { $gte: target.startDate, $lte: target.endDate }
+    });
+
+    for (const task of tasksToUpdate) {
+      const existingSubtask = task.subTasks.find(st => st.assignedToInternId === internId);
+      if (existingSubtask) {
+        existingSubtask.targetQuantity = targetQuantity;
+        existingSubtask.notes = notes || existingSubtask.notes;
+      } else {
+        task.subTasks.push({
+          assignedToInternId: internId,
+          assignedByEmployeeId: target.employeeId,
+          targetQuantity,
+          notes: notes || '',
+          status: 'notstarted'
+        });
+      }
+      await task.save();
+    }
+
+    res.status(200).json({ success: true, data: target, message: `Delegated ${targetQuantity} tasks to intern successfully` });
+  } catch (error) {
+    console.error("Error adding delegation:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+export const removeDelegation = async (req, res) => {
+  try {
+    const { id, internId } = req.params;
+    
+    const target = await EmployeeTarget.findById(id).populate('templateId');
+    if (!target) return res.status(404).json({ success: false, message: "Target not found" });
+
+    // Ensure only the assigned employee (or admin) can delegate
+    if (req.user && req.user.role === 'employee' && target.employeeId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: "Unauthorized to modify this target" });
+    }
+
+    target.delegations = target.delegations.filter(d => d.internId !== internId);
+    await target.save();
+
+    // Remove subtasks from uncompleted tasks
+    const department = target.templateId?.department || target.targetType || "SMM";
+    const templateName = target.templateId?.name || `${department} Task`;
+    
+    const baseQuery = {
+      employeeId: target.employeeId,
+      companyId: target.companyId,
+      isAutomated: true,
+      department,
+      title: templateName,
+      type: templateName,
+      ...(department === 'SMM' && { platform: target.platform || "Both" })
+    };
+
+    const tasksToUpdate = await Task.find({
+      ...baseQuery,
+      status: { $ne: 'completed' },
+      dueDate: { $gte: target.startDate, $lte: target.endDate }
+    });
+
+    for (const task of tasksToUpdate) {
+      task.subTasks = task.subTasks.filter(st => st.assignedToInternId !== internId);
+      
+      // Also fix total completed quantity in case we removed a subtask with progress
+      const totalCompleted = task.subTasks.reduce((acc, st) => acc + (st.completedQuantity || 0), 0);
+      task.completedQuantity = totalCompleted;
+      if (task.completedQuantity === 0 && task.status !== 'completed') {
+        task.status = 'notstarted';
+      }
+      await task.save();
+    }
+
+    res.status(200).json({ success: true, data: target, message: "Delegation removed successfully" });
+  } catch (error) {
+    console.error("Error removing delegation:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };

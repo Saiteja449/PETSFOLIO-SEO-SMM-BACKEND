@@ -160,9 +160,15 @@ export const updateTask = async (req, res) => {
       
       originalTask.completedQuantity = (originalTask.completedQuantity || 0) + quantityAdded;
       originalTask.status = originalTask.completedQuantity >= originalTask.targetQuantity ? 'completed' : 'inprogress';
-      originalTask.updates.push({ quantityAdded, description });
+      originalTask.updates.push({ 
+        quantityAdded, 
+        description, 
+        url: newUpdate?.url || taskFields.url || '' 
+      });
       
       if (!newUpdate && taskFields.url) originalTask.url = taskFields.url;
+      else if (newUpdate && newUpdate.url) originalTask.url = newUpdate.url;
+
       updatedTask = await originalTask.save();
     } else {
       updatedTask = await Task.findByIdAndUpdate(req.params.id, taskFields, { new: true, runValidators: true });
@@ -279,7 +285,7 @@ export const splitTask = async (req, res) => {
 export const updateSubTask = async (req, res) => {
   try {
     const { id, subTaskId } = req.params;
-    const { status, proofUrl, quantityAdded, completedBy } = req.body;
+    const { status, proofUrl, quantityAdded, completedBy, notes } = req.body;
 
     const task = await Task.findById(id);
     if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
@@ -289,22 +295,36 @@ export const updateSubTask = async (req, res) => {
 
     if (status) subTask.status = status;
     if (proofUrl) subTask.proofUrl = proofUrl;
+    if (notes) subTask.notes = notes;
+    
+    // Track update timestamp
+    subTask.updatedAt = new Date();
+
     if (quantityAdded) {
       subTask.completedQuantity = (subTask.completedQuantity || 0) + Number(quantityAdded);
+      task.completedQuantity = (task.completedQuantity || 0) + Number(quantityAdded);
+      
       if (subTask.completedQuantity >= subTask.targetQuantity) {
         subTask.status = 'completed';
       } else if (subTask.completedQuantity > 0) {
         subTask.status = 'inprogress';
       }
+      
+      subTask.submissions.push({
+        quantityAdded: Number(quantityAdded),
+        proofUrl: proofUrl || '',
+        notes: notes || '',
+        submittedAt: new Date()
+      });
     }
+    
     if (subTask.status === 'completed' && !subTask.completedAt) {
       subTask.completedAt = new Date();
       if (completedBy) subTask.completedBy = completedBy;
     }
 
-    const totalCompleted = task.subTasks.reduce((acc, st) => acc + (st.completedQuantity || 0), 0);
-    task.completedQuantity = totalCompleted;
     if (task.completedQuantity >= task.targetQuantity) {
+      task.completedQuantity = task.targetQuantity;
       task.status = 'completed';
     } else if (task.completedQuantity > 0) {
       task.status = 'inprogress';

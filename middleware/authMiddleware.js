@@ -54,4 +54,12 @@ const employee = (req, res, next) => {
   }
 };
 
-export { protect, admin, employee };
+const employeeOrIntern = (req, res, next) => {
+  if (req.user && (req.user.role === 'employee' || req.user.role === 'intern')) {
+    next();
+  } else {
+    res.status(403).json({ message: 'Not authorized as an employee or intern' });
+  }
+};
+
+export { protect, admin, employee, employeeOrIntern };
