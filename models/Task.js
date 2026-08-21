@@ -1,11 +1,16 @@
 import mongoose from 'mongoose';
 
-const creativeTaskSchema = new mongoose.Schema(
+const taskSchema = new mongoose.Schema(
   {
     title: {
       type: String,
       required: true,
       trim: true,
+    },
+    department: {
+      type: String,
+      required: true,
+      enum: ['SMM', 'SEO', 'Content', 'Sales', 'Creative'],
     },
     description: {
       type: String,
@@ -17,10 +22,14 @@ const creativeTaskSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    platform: {
+      type: String, // mostly used for SMM
+      default: '',
+    },
     type: {
       type: String,
       required: true,
-      default: 'Creative Task',
+      default: 'Task',
     },
     status: {
       type: String,
@@ -30,7 +39,6 @@ const creativeTaskSchema = new mongoose.Schema(
     },
     assignedTo: {
       type: String,
-      required: true,
     },
     employeeId: {
       type: String,
@@ -47,8 +55,16 @@ const creativeTaskSchema = new mongoose.Schema(
       type: String,
       default: 'Today',
     },
+    startDate: {
+      type: Date,
+    },
     dueDate: {
       type: Date,
+    },
+    frequency: {
+      type: String,
+      enum: ['Daily', 'Weekly', 'Monthly', ''],
+      default: '',
     },
     targetQuantity: {
       type: Number,
@@ -71,13 +87,42 @@ const creativeTaskSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    isLegacyInternData: {
+      type: Boolean,
+      default: false,
+    },
+    isArchived: {
+      type: Boolean,
+      default: false,
+    },
+    originalOwnerId: {
+      type: String,
+    },
+    parentEmployeeId: {
+      type: String,
+    },
+    subTasks: [{
+      assignedToInternId: { type: String, required: true },
+      assignedByEmployeeId: { type: String, required: true },
+      targetQuantity: { type: Number, required: true },
+      completedQuantity: { type: Number, default: 0 },
+      status: { type: String, enum: ['notstarted', 'inprogress', 'paused', 'completed'], default: 'notstarted' },
+      proofUrl: { type: String },
+      notes: { type: String },
+      completedBy: {
+        userId: String,
+        name: String,
+        role: String
+      },
+      completedAt: Date
+    }],
   },
   {
     timestamps: true,
   }
 );
 
-creativeTaskSchema.set('toJSON', {
+taskSchema.set('toJSON', {
   transform: (doc, ret) => {
     ret.id = ret._id;
     delete ret._id;
@@ -85,6 +130,6 @@ creativeTaskSchema.set('toJSON', {
   },
 });
 
-const CreativeTask = mongoose.model('CreativeTask', creativeTaskSchema);
+const Task = mongoose.model('Task', taskSchema);
 
-export default CreativeTask;
+export default Task;

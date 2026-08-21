@@ -15,24 +15,24 @@ const keyFilePath = path.join(__dirname, '..', 'youtube-dashboard-501311-17fccbb
 let searchConsoleClient = null;
 
 // Initialize clients if credentials exist
-if (fs.existsSync(keyFilePath)) {
-  try {
-    const auth = new google.auth.GoogleAuth({
-      keyFile: keyFilePath,
-      scopes: ['https://www.googleapis.com/auth/webmasters.readonly'],
-    });
+// if (fs.existsSync(keyFilePath)) {
+//   try {
+//     const auth = new google.auth.GoogleAuth({
+//       keyFile: keyFilePath,
+//       scopes: ['https://www.googleapis.com/auth/webmasters.readonly'],
+//     });
     
-    searchConsoleClient = google.webmasters({
-      version: 'v3',
-      auth: auth,
-    });
-    console.log("SEO Analytics: Google APIs initialized successfully");
-  } catch (error) {
-    console.error("SEO Analytics: Error initializing Google APIs", error);
-  }
-} else {
-  console.warn("SEO Analytics: Google credentials file not found at", keyFilePath);
-}
+//     searchConsoleClient = google.webmasters({
+//       version: 'v3',
+//       auth: auth,
+//     });
+//     console.log("SEO Analytics: Google APIs initialized successfully");
+//   } catch (error) {
+//     console.error("SEO Analytics: Error initializing Google APIs", error);
+//   }
+// } else {
+//   console.warn("SEO Analytics: Google credentials file not found at", keyFilePath);
+// }
 
 // @desc    Get website search performance from GSC
 // @route   GET /api/seo-analytics/search?companyId=...

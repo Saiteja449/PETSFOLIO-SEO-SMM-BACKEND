@@ -18,23 +18,7 @@ const EmployeeTargetSchema = new mongoose.Schema(
     },
     templateId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "TargetTemplate",
-    },
-    seoTemplateId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "SeoActivityTemplate",
-    },
-    contentTemplateId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "ContentActivityTemplate",
-    },
-    salesTemplateId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "SalesActivityTemplate",
-    },
-    creativeTemplateId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "CreativeActivityTemplate",
+      ref: "TaskTemplate",
     },
     targetType: {
       type: String,
@@ -91,6 +75,10 @@ const EmployeeTargetSchema = new mongoose.Schema(
     endDate: {
       type: Date,
       required: true,
+    },
+    isLegacyInternData: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true },

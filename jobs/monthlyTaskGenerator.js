@@ -14,10 +14,7 @@ const buildAssignmentPayload = (target) => {
     metric: target.metric,
     customName: target.customName,
     templateId: target.templateId,
-    seoTemplateId: target.seoTemplateId,
-    contentTemplateId: target.contentTemplateId,
-    salesTemplateId: target.salesTemplateId,
-    creativeTemplateId: target.creativeTemplateId,
+    targetType: target.targetType,
   };
 
   return base;
@@ -31,7 +28,6 @@ const groupTargets = (targets) => {
   for (const target of targets) {
     const employeeKey = String(target.employeeId || '');
     const companyKey = String(target.companyId || '');
-    const typeKey = String(target.targetType || 'SMM');
 
     if (!employeeKey) continue;
 
@@ -40,13 +36,12 @@ const groupTargets = (targets) => {
     }
 
     const employeeGroups = groupedByEmployee.get(employeeKey);
-    const compositeKey = `${companyKey}:${typeKey}`;
+    const compositeKey = `${companyKey}`;
 
     if (!employeeGroups.has(compositeKey)) {
       employeeGroups.set(compositeKey, {
         employeeId: employeeKey,
         companyId: companyKey,
-        type: typeKey,
         targets: [],
       });
     }
@@ -70,6 +65,7 @@ export const setupMonthlyTaskGenerator = () => {
         const activeTargets = await EmployeeTarget.find({
           endDate: { $gte: today },
           status: 'In Progress',
+          isLegacyInternData: { $ne: true },
         }).lean();
 
         const groupedTargets = groupTargets(activeTargets);
@@ -83,9 +79,9 @@ export const setupMonthlyTaskGenerator = () => {
             if (group.targets.length === 0) continue;
 
             const assignments = getTypeSpecificAssignments(group.targets);
-            await generateBatchTasks(group.employeeId, group.companyId, assignments, group.type);
+            await generateBatchTasks(group.employeeId, group.companyId, assignments);
             console.log(
-              `Generated monthly tasks for employee ${group.employeeId}, company ${group.companyId}, type ${group.type}`,
+              `Generated monthly tasks for employee ${group.employeeId}, company ${group.companyId}`,
             );
           }
 

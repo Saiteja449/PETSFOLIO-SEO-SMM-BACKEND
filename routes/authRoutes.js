@@ -13,7 +13,8 @@ import {
   getMyInterns,
   updateMyIntern,
   deleteMyIntern,
-  updateMyInternPassword
+  updateMyInternPassword,
+  reassignAndDeleteIntern
 } from '../controllers/authController.js';
 import { protect, admin, employee } from '../middleware/authMiddleware.js';
 
@@ -43,6 +44,9 @@ router.route('/my-interns')
 router.route('/my-interns/:id')
   .put(protect, employee, updateMyIntern)
   .delete(protect, employee, deleteMyIntern);
+
+router.route('/my-interns/:id/reassign-and-delete')
+  .post(protect, employee, reassignAndDeleteIntern);
 
 router.route('/my-interns/:id/password')
   .put(protect, employee, updateMyInternPassword);

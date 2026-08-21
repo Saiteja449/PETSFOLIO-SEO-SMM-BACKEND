@@ -1,17 +1,8 @@
 import dotenv from "dotenv";
 import mongoose from "mongoose";
-import SmmTask from "./models/SmmTask.js";
-import TargetTemplate from "./models/TargetTemplate.js";
+import Task from "./models/Task.js";
+import TaskTemplate from "./models/TaskTemplate.js";
 import EmployeeTarget from "./models/EmployeeTarget.js";
-import SeoActivityTemplate from "./models/SeoActivityTemplate.js";
-import SeoTask from "./models/SeoTask.js";
-import ContentTask from "./models/ContentTask.js";
-import SalesTask from "./models/SalesTask.js";
-import CreativeTask from "./models/CreativeTask.js";
-import ContentActivityTemplate from "./models/ContentActivityTemplate.js";
-import SalesActivityTemplate from "./models/SalesActivityTemplate.js";
-import CreativeActivityTemplate from "./models/CreativeActivityTemplate.js";
-
 
 dotenv.config();
 
@@ -20,40 +11,16 @@ const clearData = async () => {
     const conn = await mongoose.connect(process.env.MONGO_URI);
     console.log(`MongoDB Connected: ${conn.connection.host}`);
 
-    console.log("Clearing tasks and templates data...");
+    console.log("Clearing all unified tasks, targets, and templates...");
 
-    await SmmTask.deleteMany({});
-    console.log("SmmTask collection cleared.");
+    await Task.deleteMany({});
+    console.log("Task collection cleared.");
 
-    await SeoTask.deleteMany({});
-    console.log("SeoTask collection cleared.");
-
-    await ContentTask.deleteMany({});
-    console.log("ContentTask collection cleared.");
-
-    await SalesTask.deleteMany({});
-    console.log("SalesTask collection cleared.");
-
-    await CreativeTask.deleteMany({});
-    console.log("CreativeTask collection cleared.");
-
-    await TargetTemplate.deleteMany({});
-    console.log("TargetTemplate collection cleared.");
+    await TaskTemplate.deleteMany({});
+    console.log("TaskTemplate collection cleared.");
 
     await EmployeeTarget.deleteMany({});
     console.log("EmployeeTarget collection cleared.");
-
-    await SeoActivityTemplate.deleteMany({});
-    console.log("SeoActivityTemplate collection cleared.");
-
-    await ContentActivityTemplate.deleteMany({});
-    console.log("ContentActivityTemplate collection cleared.");
-
-    await SalesActivityTemplate.deleteMany({});
-    console.log("SalesActivityTemplate collection cleared.");
-
-    await CreativeActivityTemplate.deleteMany({});
-    console.log("CreativeActivityTemplate collection cleared.");
 
     console.log("All tasks and templates data cleared successfully!");
     process.exit(0);

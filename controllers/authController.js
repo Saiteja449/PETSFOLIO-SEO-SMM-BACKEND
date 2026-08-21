@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET || "fallback_secret", {
@@ -463,6 +464,100 @@ const updateMyInternPassword = async (req, res) => {
   }
 };
 
+// @desc    Reassign tasks from intern to another intern, then delete the intern
+// @route   POST /api/auth/my-interns/:id/reassign-and-delete
+// @access  Private/Employee
+const reassignAndDeleteIntern = async (req, res) => {
+  const { newInternId } = req.body;
+  const internIdToDelete = req.params.id;
+
+  try {
+    const internToDelete = await User.findOne({ 
+      _id: internIdToDelete, 
+      createdBy: req.user._id,
+      role: "intern"
+    });
+
+    if (!internToDelete) {
+      return res.status(404).json({ success: false, message: "Intern to delete not found or not authorized" });
+    }
+
+    if (newInternId) {
+      const newIntern = await User.findOne({
+        _id: newInternId,
+        createdBy: req.user._id,
+        role: "intern"
+      });
+
+      if (!newIntern) {
+        return res.status(404).json({ success: false, message: "New intern not found or not authorized" });
+      }
+
+      // 1. Reassign subtasks in SmmTask
+      await mongoose.model('SmmTask').updateMany(
+        { "subTasks.assignedToInternId": internIdToDelete },
+        { $set: { "subTasks.$[elem].assignedToInternId": newInternId } },
+        { arrayFilters: [{ "elem.assignedToInternId": internIdToDelete }] }
+      );
+      
+      // 2. SeoTask
+      await mongoose.model('SeoTask').updateMany(
+        { "subTasks.assignedToInternId": internIdToDelete },
+        { $set: { "subTasks.$[elem].assignedToInternId": newInternId } },
+        { arrayFilters: [{ "elem.assignedToInternId": internIdToDelete }] }
+      );
+      
+      // 3. ContentTask
+      await mongoose.model('ContentTask').updateMany(
+        { "subTasks.assignedToInternId": internIdToDelete },
+        { $set: { "subTasks.$[elem].assignedToInternId": newInternId } },
+        { arrayFilters: [{ "elem.assignedToInternId": internIdToDelete }] }
+      );
+
+      // 4. CreativeTask
+      await mongoose.model('CreativeTask').updateMany(
+        { "subTasks.assignedToInternId": internIdToDelete },
+        { $set: { "subTasks.$[elem].assignedToInternId": newInternId } },
+        { arrayFilters: [{ "elem.assignedToInternId": internIdToDelete }] }
+      );
+
+      // 5. SalesTask
+      await mongoose.model('SalesTask').updateMany(
+        { "subTasks.assignedToInternId": internIdToDelete },
+        { $set: { "subTasks.$[elem].assignedToInternId": newInternId } },
+        { arrayFilters: [{ "elem.assignedToInternId": internIdToDelete }] }
+      );
+    } else {
+      await mongoose.model('SmmTask').updateMany(
+        { "subTasks.assignedToInternId": internIdToDelete },
+        { $pull: { subTasks: { assignedToInternId: internIdToDelete } } }
+      );
+      await mongoose.model('SeoTask').updateMany(
+        { "subTasks.assignedToInternId": internIdToDelete },
+        { $pull: { subTasks: { assignedToInternId: internIdToDelete } } }
+      );
+      await mongoose.model('ContentTask').updateMany(
+        { "subTasks.assignedToInternId": internIdToDelete },
+        { $pull: { subTasks: { assignedToInternId: internIdToDelete } } }
+      );
+      await mongoose.model('CreativeTask').updateMany(
+        { "subTasks.assignedToInternId": internIdToDelete },
+        { $pull: { subTasks: { assignedToInternId: internIdToDelete } } }
+      );
+      await mongoose.model('SalesTask').updateMany(
+        { "subTasks.assignedToInternId": internIdToDelete },
+        { $pull: { subTasks: { assignedToInternId: internIdToDelete } } }
+      );
+    }
+
+    await User.deleteOne({ _id: internIdToDelete });
+    res.json({ success: true, message: "Intern removed and tasks handled" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 export {
   loginUser,
   logoutUser,
@@ -477,5 +572,6 @@ export {
   getMyInterns,
   updateMyIntern,
   deleteMyIntern,
-  updateMyInternPassword
+  updateMyInternPassword,
+  reassignAndDeleteIntern
 };
