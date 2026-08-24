@@ -631,15 +631,18 @@ export const addDelegation = async (req, res) => {
     });
 
     for (const task of tasksToUpdate) {
+      const remainingCapacity = Math.max(0, (task.targetQuantity || 0) - (task.completedQuantity || 0));
+      const cappedQuantity = Math.min(targetQuantity, remainingCapacity);
+
       const existingSubtask = task.subTasks.find(st => st.assignedToInternId === internId);
       if (existingSubtask) {
-        existingSubtask.targetQuantity = targetQuantity;
+        existingSubtask.targetQuantity = cappedQuantity;
         existingSubtask.notes = notes || existingSubtask.notes;
       } else {
         task.subTasks.push({
           assignedToInternId: internId,
           assignedByEmployeeId: target.employeeId,
-          targetQuantity,
+          targetQuantity: cappedQuantity,
           notes: notes || '',
           status: 'notstarted'
         });
