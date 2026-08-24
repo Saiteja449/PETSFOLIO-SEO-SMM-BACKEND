@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
+import Notification from "../models/Notification.js";
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET || "fallback_secret", {
@@ -133,6 +134,19 @@ const createEmployee = async (req, res) => {
       department: department || ["seo"],
       assignedCompanies: assignedCompanies || [],
     });
+
+    // Notify Managers
+    const managers = await User.find({ role: 'manager' });
+    if (managers.length > 0) {
+      const managerNotifications = managers.map(m => ({
+        title: 'New Employee',
+        message: `${name} has been added to the team.`,
+        category: 'system',
+        severity: 'info',
+        userId: m._id
+      }));
+      await Notification.insertMany(managerNotifications);
+    }
 
     // Don't send token for employee creation, just return success
     res.status(201).json({
@@ -332,6 +346,19 @@ const createIntern = async (req, res) => {
       createdBy: req.user._id,
     });
 
+    // Notify Managers
+    const managers = await User.find({ role: 'manager' });
+    if (managers.length > 0) {
+      const managerNotifications = managers.map(m => ({
+        title: 'New Intern',
+        message: `${employee?.name || 'An employee'} added intern ${intern.name}.`,
+        category: 'intern',
+        severity: 'info',
+        userId: m._id
+      }));
+      await Notification.insertMany(managerNotifications);
+    }
+
     res.status(201).json({
       success: true,
       _id: intern._id,
@@ -452,7 +479,23 @@ const deleteMyIntern = async (req, res) => {
         });
     }
 
+    const internName = intern.name;
     await User.deleteOne({ _id: intern._id });
+
+    // Notify Managers
+    const employee = await User.findById(req.user._id);
+    const managers = await User.find({ role: 'manager' });
+    if (managers.length > 0) {
+      const managerNotifications = managers.map(m => ({
+        title: 'Intern Removed',
+        message: `${employee?.name || 'An employee'} removed intern ${internName}.`,
+        category: 'intern',
+        severity: 'info',
+        userId: m._id
+      }));
+      await Notification.insertMany(managerNotifications);
+    }
+
     res.json({ success: true, message: "Intern removed" });
   } catch (error) {
     console.error(error);
@@ -544,7 +587,50 @@ const reassignAndDeleteIntern = async (req, res) => {
       await safeUpdate("Task", { "subTasks.assignedToInternId": internIdToDelete }, { $pull: { subTasks: { assignedToInternId: internIdToDelete } } });
     }
 
+    const internName = internToDelete.name;
     await User.deleteOne({ _id: internIdToDelete });
+
+    // Notifications
+    const employee = await User.findById(req.user._id);
+    const managers = await User.find({ role: 'manager' });
+    
+    if (newInternId) {
+      const newIntern = await User.findById(newInternId);
+      
+      // Notify New Intern
+      await Notification.create({
+        title: 'Tasks Reassigned',
+        message: `You have been assigned tasks from ${internName}.`,
+        category: 'task',
+        severity: 'info',
+        userId: newInternId
+      });
+
+      // Notify Managers
+      if (managers.length > 0) {
+        const managerNotifications = managers.map(m => ({
+          title: 'Intern Replaced',
+          message: `${internName}'s tasks reassigned to ${newIntern?.name || 'another intern'} and account removed.`,
+          category: 'intern',
+          severity: 'info',
+          userId: m._id
+        }));
+        await Notification.insertMany(managerNotifications);
+      }
+    } else {
+      // Notify Managers
+      if (managers.length > 0) {
+        const managerNotifications = managers.map(m => ({
+          title: 'Intern Removed',
+          message: `${employee?.name || 'An employee'} removed intern ${internName}.`,
+          category: 'intern',
+          severity: 'info',
+          userId: m._id
+        }));
+        await Notification.insertMany(managerNotifications);
+      }
+    }
+
     res.json({ success: true, message: "Intern removed and tasks handled" });
   } catch (error) {
     console.error(error);

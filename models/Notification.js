@@ -11,7 +11,7 @@ const notificationSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['smm', 'seo', 'system', 'task', 'target'],
+    enum: ['smm', 'seo', 'system', 'task', 'target', 'delegation', 'intern'],
     required: true,
   },
   severity: {

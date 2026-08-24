@@ -269,6 +269,16 @@ export const splitTask = async (req, res) => {
         notes: assign.notes || '',
         status: 'notstarted',
       });
+      
+      // Notifications
+      await Notification.create({
+        title: 'New Subtask',
+        message: `You've been assigned ${assign.targetQuantity} tasks for ${task.title}.`,
+        category: 'task',
+        severity: 'info',
+        userId: assign.assignedToInternId,
+        companyId: task.companyId
+      });
     }
     
     await task.save();
@@ -318,9 +328,11 @@ export const updateSubTask = async (req, res) => {
       });
     }
     
+    let justCompleted = false;
     if (subTask.status === 'completed' && !subTask.completedAt) {
       subTask.completedAt = new Date();
       if (completedBy) subTask.completedBy = completedBy;
+      justCompleted = true;
     }
 
     if (task.completedQuantity >= task.targetQuantity) {
@@ -336,6 +348,46 @@ export const updateSubTask = async (req, res) => {
       const empId = task.employeeId || (await User.findOne({ email: task.assignedTo }))?._id;
       if (empId) {
           await recalculateTargetProgress(empId, task.type, task.department);
+      }
+    }
+
+    // Notifications
+    const intern = await User.findById(subTask.assignedToInternId);
+    const parentEmployeeId = task.employeeId || (await User.findOne({ email: task.assignedTo }))?._id;
+
+    if (quantityAdded) {
+      await Notification.create({
+        title: 'Intern Progress',
+        message: `${intern?.name || 'An intern'} updated progress on ${task.title} (+${quantityAdded}).`,
+        category: 'task',
+        severity: 'info',
+        userId: parentEmployeeId,
+        companyId: task.companyId
+      });
+    }
+
+    if (justCompleted) {
+      // It was just completed
+      await Notification.create({
+        title: 'Subtask Completed',
+        message: `${intern?.name || 'An intern'} completed their portion of ${task.title}.`,
+        category: 'task',
+        severity: 'success',
+        userId: parentEmployeeId,
+        companyId: task.companyId
+      });
+
+      const managers = await User.find({ role: 'manager' });
+      if (managers.length > 0) {
+        const managerNotifications = managers.map(m => ({
+          title: 'Subtask Completed',
+          message: `${intern?.name || 'An intern'} completed their portion of ${task.title}.`,
+          category: 'task',
+          severity: 'success',
+          userId: m._id,
+          companyId: task.companyId
+        }));
+        await Notification.insertMany(managerNotifications);
       }
     }
 
@@ -360,8 +412,47 @@ export const reassignSubTask = async (req, res) => {
     const subTask = task.subTasks.id(subTaskId);
     if (!subTask) return res.status(404).json({ success: false, message: 'SubTask not found' });
 
+    const oldInternId = subTask.assignedToInternId;
     subTask.assignedToInternId = newInternId;
     await task.save();
+
+    // Notifications
+    const newIntern = await User.findById(newInternId);
+    const oldIntern = await User.findById(oldInternId);
+    const parentEmployeeId = task.employeeId || (await User.findOne({ email: task.assignedTo }))?._id;
+
+    if (oldInternId) {
+      await Notification.create({
+        title: 'Task Reassigned',
+        message: `Your subtask for ${task.title} has been reassigned to another intern.`,
+        category: 'task',
+        severity: 'warning',
+        userId: oldInternId,
+        companyId: task.companyId
+      });
+    }
+
+    if (newInternId) {
+      await Notification.create({
+        title: 'New Subtask Assigned',
+        message: `You've been assigned a subtask for ${task.title}.`,
+        category: 'task',
+        severity: 'info',
+        userId: newInternId,
+        companyId: task.companyId
+      });
+    }
+
+    if (parentEmployeeId) {
+      await Notification.create({
+        title: 'Subtask Reassigned',
+        message: `${task.title} subtask reassigned from ${oldIntern?.name || 'intern'} to ${newIntern?.name || 'intern'}.`,
+        category: 'task',
+        severity: 'info',
+        userId: parentEmployeeId,
+        companyId: task.companyId
+      });
+    }
 
     res.status(200).json({ success: true, data: task });
   } catch (error) {

@@ -4,6 +4,8 @@ import TrackedVideo from "../models/TrackedVideo.js";
 import User from "../models/User.js";
 import Task from "../models/Task.js";
 import Holiday from "../models/Holiday.js";
+import Notification from "../models/Notification.js";
+import Company from "../models/Company.js";
 
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // HELPER FUNCTIONS for task generation
@@ -400,6 +402,16 @@ export const assignTarget = async (req, res) => {
       frequency, targetGoal, templateId, targetType, platform, expected
     }]);
 
+    const company = await Company.findOne({ id: companyId });
+    await Notification.create({
+      title: `New Target Assigned`,
+      message: `You have been assigned a new ${frequency.toLowerCase()} target for ${template?.name || targetType} with a goal of ${targetGoal}.`,
+      category: 'target',
+      severity: 'info',
+      userId: employeeId,
+      companyId: company?._id
+    });
+
     res.status(201).json({ success: true, data: newTarget });
   } catch (error) {
     console.error("Error assigning target:", error);
@@ -462,6 +474,16 @@ export const assignBatchTargets = async (req, res) => {
     }
 
     await generateBatchTasks(employeeId, companyId, assignments);
+
+    const company = await Company.findOne({ id: companyId });
+    await Notification.create({
+      title: `Targets Updated`,
+      message: `${assignments.length} targets have been assigned or updated for you.`,
+      category: 'target',
+      severity: 'info',
+      userId: employeeId,
+      companyId: company?._id
+    });
 
     res.status(201).json({ success: true, data: savedTargets, message: "Batch targets assigned" });
   } catch (error) {
@@ -649,6 +671,31 @@ export const addDelegation = async (req, res) => {
       }
       await task.save();
     }
+    const employee = await User.findById(target.employeeId);
+    
+    // Notify Intern
+    await Notification.create({
+      title: 'New Delegation',
+      message: `${employee?.name || 'An employee'} delegated ${targetQuantity} tasks of ${templateName} to you.`,
+      category: 'delegation',
+      severity: 'info',
+      userId: internId,
+      companyId: target.companyId
+    });
+
+    // Notify Managers
+    const managers = await User.find({ role: 'manager' });
+    if (managers.length > 0) {
+      const managerNotifications = managers.map(m => ({
+        title: 'Delegation Created',
+        message: `${employee?.name || 'An employee'} delegated ${targetQuantity} ${templateName} tasks to intern ${intern.name}.`,
+        category: 'delegation',
+        severity: 'info',
+        userId: m._id,
+        companyId: target.companyId
+      }));
+      await Notification.insertMany(managerNotifications);
+    }
 
     res.status(200).json({ success: true, data: target, message: `Delegated ${targetQuantity} tasks to intern successfully` });
   } catch (error) {
@@ -702,6 +749,32 @@ export const removeDelegation = async (req, res) => {
         task.status = 'notstarted';
       }
       await task.save();
+    }
+    const employee = await User.findById(target.employeeId);
+    const intern = await User.findById(internId);
+    
+    // Notify Intern
+    await Notification.create({
+      title: 'Delegation Removed',
+      message: `Your delegation for ${templateName} has been removed.`,
+      category: 'delegation',
+      severity: 'warning',
+      userId: internId,
+      companyId: target.companyId
+    });
+
+    // Notify Managers
+    const managers = await User.find({ role: 'manager' });
+    if (managers.length > 0) {
+      const managerNotifications = managers.map(m => ({
+        title: 'Delegation Removed',
+        message: `${employee?.name || 'An employee'} removed ${intern?.name || 'intern'}'s delegation for ${templateName}.`,
+        category: 'delegation',
+        severity: 'info',
+        userId: m._id,
+        companyId: target.companyId
+      }));
+      await Notification.insertMany(managerNotifications);
     }
 
     res.status(200).json({ success: true, data: target, message: "Delegation removed successfully" });
