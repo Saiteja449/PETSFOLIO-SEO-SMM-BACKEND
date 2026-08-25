@@ -25,6 +25,10 @@ const protect = async (req, res, next) => {
         return res.status(401).json({ message: 'Session expired. You have been logged in from another device.' });
       }
 
+      if (user.isBlocked) {
+        return res.status(403).json({ message: 'Your account is blocked/deactivated. Please contact admin.' });
+      }
+
       req.user = user;
       return next();
     } catch (error) {

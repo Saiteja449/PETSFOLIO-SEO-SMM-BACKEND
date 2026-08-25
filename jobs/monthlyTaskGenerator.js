@@ -1,6 +1,8 @@
 import cron from 'node-cron';
 import EmployeeTarget from '../models/EmployeeTarget.js';
+import User from '../models/User.js';
 import { generateBatchTasks } from '../controllers/targetController.js';
+import { sendMonthlyPerformanceReports } from '../services/monthlyReportService.js';
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -56,12 +58,13 @@ export const setupMonthlyTaskGenerator = () => {
   cron.schedule(
     '0 0 1 * *',
     async () => {
-      console.log('Running Monthly Task Generator Cron Job...');
+      console.log('Running Monthly Task Generator & Performance Email Dispatch Cron Job...');
 
       try {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
+        // 1. Generate new month tasks for active employees
         const activeTargets = await EmployeeTarget.find({
           endDate: { $gte: today },
           status: 'In Progress',
@@ -73,6 +76,13 @@ export const setupMonthlyTaskGenerator = () => {
 
         for (let index = 0; index < employeeEntries.length; index += 1) {
           const [employeeId, employeeGroups] = employeeEntries[index];
+          
+          const employeeUser = await User.findById(employeeId);
+          if (employeeUser && employeeUser.isBlocked) {
+            console.log(`Skipping monthly task generation for blocked employee ${employeeId} (${employeeUser.name})`);
+            continue;
+          }
+
           console.log(`Processing monthly targets for employee ${employeeId}...`);
 
           for (const group of employeeGroups.values()) {
@@ -90,9 +100,20 @@ export const setupMonthlyTaskGenerator = () => {
           }
         }
 
-        console.log('Monthly Task Generator Cron Job Completed.');
+        console.log('Monthly Task Generator Step Completed.');
+
+        // 2. Dispatch Previous Month Performance Reports via Email to Employees & Interns
+        console.log('--- Dispatching Previous Month Performance Email Reports ---');
+        try {
+          const reportSummary = await sendMonthlyPerformanceReports({ referenceDate: today });
+          console.log(`✅ Monthly Performance Report Email dispatch completed for ${reportSummary.monthLabel}. Processed: ${reportSummary.results.length} users.`);
+        } catch (emailErr) {
+          console.error('Error during monthly performance email dispatch:', emailErr);
+        }
+
+        console.log('Monthly Cron Job (Task Generation + Performance Reports) Completed.');
       } catch (error) {
-        console.error('Error in Monthly Task Generator Cron Job:', error);
+        console.error('Error in Monthly Cron Job:', error);
       }
     },
     {

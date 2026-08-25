@@ -86,7 +86,7 @@ const taskSchema = new mongoose.Schema(
     },
     dailyExpiry: {
       type: Boolean,
-      default: false,
+      default: true,
     },
     isLegacyInternData: {
       type: Boolean,

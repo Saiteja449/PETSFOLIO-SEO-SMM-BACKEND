@@ -39,7 +39,11 @@ const taskTemplateSchema = new mongoose.Schema(
     },
     dailyExpiry: {
       type: Boolean,
-      default: false,
+      default: true,
+    },
+    dailyExpire: {
+      type: Boolean,
+      default: true,
     },
   },
   { timestamps: true }

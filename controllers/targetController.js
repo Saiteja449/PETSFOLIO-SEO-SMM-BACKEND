@@ -495,7 +495,7 @@ export const assignBatchTargets = async (req, res) => {
 export const getEmployeeTargets = async (req, res) => {
   try {
     const { employeeId } = req.params;
-    const { targetType, month, year, companyId } = req.query;
+    const { targetType, month, year, companyId, includeLegacy } = req.query;
 
     const query = {
       $or: [
@@ -504,6 +504,13 @@ export const getEmployeeTargets = async (req, res) => {
       ]
     };
     
+    const user = await User.findById(employeeId);
+    const isIntern = user?.role === 'intern';
+
+    if (includeLegacy !== 'true' && !isIntern) {
+      query.isLegacyInternData = { $ne: true };
+    }
+
     if (companyId) {
       query.companyId = companyId;
     }
@@ -528,9 +535,12 @@ export const getEmployeeTargets = async (req, res) => {
 export const getCompanyEmployeeTargets = async (req, res) => {
   try {
     const { companyId } = req.params;
-    const { month, year, targetType } = req.query;
+    const { month, year, targetType, includeLegacy } = req.query;
 
     const query = { companyId };
+    if (includeLegacy !== 'true') {
+      query.isLegacyInternData = { $ne: true };
+    }
     if (targetType) query.targetType = targetType;
 
     if (month && year) {
@@ -545,6 +555,7 @@ export const getCompanyEmployeeTargets = async (req, res) => {
       .populate("templateId", "name metric defaultGoalValue");
 
     const groupedTargets = targets.reduce((acc, target) => {
+      if (!target.employeeId) return acc;
       const empId = target.employeeId._id.toString();
       if (!acc[empId]) {
         acc[empId] = {
@@ -620,6 +631,10 @@ export const addDelegation = async (req, res) => {
     const intern = await User.findById(internId);
     if (!intern || intern.role !== 'intern') {
       return res.status(404).json({ success: false, message: "Intern not found" });
+    }
+
+    if (intern.isBlocked) {
+      return res.status(400).json({ success: false, message: "Cannot delegate tasks to a deactivated/blocked intern." });
     }
 
     // Add or update delegation rule on the target
@@ -740,13 +755,18 @@ export const removeDelegation = async (req, res) => {
     });
 
     for (const task of tasksToUpdate) {
-      task.subTasks = task.subTasks.filter(st => st.assignedToInternId !== internId);
+      // Only remove unstarted/pending subtasks for this intern; preserve completed subtask work
+      task.subTasks = task.subTasks.filter(st => {
+        if (st.assignedToInternId !== internId) return true;
+        return st.status === 'completed' || (st.completedQuantity > 0);
+      });
       
-      // Also fix total completed quantity in case we removed a subtask with progress
       const totalCompleted = task.subTasks.reduce((acc, st) => acc + (st.completedQuantity || 0), 0);
-      task.completedQuantity = totalCompleted;
-      if (task.completedQuantity === 0 && task.status !== 'completed') {
-        task.status = 'notstarted';
+      task.completedQuantity = Math.max(task.completedQuantity || 0, totalCompleted);
+      if (task.completedQuantity >= task.targetQuantity) {
+        task.status = 'completed';
+      } else if (task.completedQuantity > 0) {
+        task.status = 'inprogress';
       }
       await task.save();
     }

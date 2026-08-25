@@ -14,7 +14,8 @@ import {
   updateMyIntern,
   deleteMyIntern,
   updateMyInternPassword,
-  reassignAndDeleteIntern
+  reassignAndDeleteIntern,
+  toggleBlockUser,
 } from '../controllers/authController.js';
 import { protect, admin, employee, employeeOrIntern } from '../middleware/authMiddleware.js';
 
@@ -36,6 +37,13 @@ router.route('/employees/:id')
 router.route('/employees/:id/password')
   .put(protect, admin, updateEmployeePassword);
 
+router.route('/employees/:id/toggle-block')
+  .put(protect, admin, toggleBlockUser);
+
+// Generic User Toggle Block
+router.route('/users/:id/toggle-block')
+  .put(protect, employeeOrIntern, toggleBlockUser);
+
 // Employee Intern Management
 router.route('/my-interns')
   .post(protect, employee, createIntern)
@@ -44,6 +52,9 @@ router.route('/my-interns')
 router.route('/my-interns/:id')
   .put(protect, employee, updateMyIntern)
   .delete(protect, employee, deleteMyIntern);
+
+router.route('/my-interns/:id/toggle-block')
+  .put(protect, employeeOrIntern, toggleBlockUser);
 
 router.route('/my-interns/:id/reassign-and-delete')
   .post(protect, employee, reassignAndDeleteIntern);

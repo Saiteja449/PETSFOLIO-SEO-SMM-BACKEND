@@ -1,4 +1,6 @@
 import User from "../models/User.js";
+import Task from "../models/Task.js";
+import EmployeeTarget from "../models/EmployeeTarget.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import Notification from "../models/Notification.js";
@@ -19,6 +21,13 @@ const loginUser = async (req, res) => {
     const user = await User.findOne({ email });
 
     if (user && (await user.matchPassword(password))) {
+      if (user.isBlocked) {
+        return res.status(403).json({
+          success: false,
+          message: "Your account is currently deactivated/blocked. Please contact your administrator.",
+        });
+      }
+
       const token = generateToken(user._id);
       user.currentToken = token;
       await user.save();
@@ -31,6 +40,7 @@ const loginUser = async (req, res) => {
         role: user.role,
         department: user.department,
         assignedCompanies: user.assignedCompanies,
+        isBlocked: user.isBlocked,
         token,
       });
     } else {
@@ -638,6 +648,197 @@ const reassignAndDeleteIntern = async (req, res) => {
   }
 };
 
+// @desc    Toggle Block/Unblock status for an Employee or Intern
+// @route   PUT /api/auth/employees/:id/toggle-block (or /my-interns/:id/toggle-block)
+// @access  Private (Admin or Employee for their intern)
+const toggleBlockUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // Role check: Employees can only block interns they manage or created
+    if (req.user.role === 'employee' && user.role !== 'intern') {
+      return res.status(403).json({ success: false, message: "Unauthorized to modify this user" });
+    }
+
+    user.isBlocked = !user.isBlocked;
+    user.blockedAt = user.isBlocked ? new Date() : null;
+
+    if (user.isBlocked) {
+      user.currentToken = null; // Invalidate active session immediately
+    }
+
+    await user.save();
+
+    // When blocking, handle optional task & delegation reassignment
+    if (user.isBlocked) {
+      const { reassignTo, newInternId } = req.body || {};
+      const targetUserId = reassignTo || newInternId;
+
+      if (user.role === 'intern') {
+        if (targetUserId) {
+          const targetIntern = await User.findOne({
+            _id: targetUserId,
+            role: "intern",
+            isBlocked: { $ne: true },
+          });
+
+          if (targetIntern) {
+            // Find all active/uncompleted tasks with subtasks assigned to the blocked intern
+            const activeTasks = await Task.find({
+              "subTasks.assignedToInternId": user._id.toString(),
+              status: { $ne: 'completed' }
+            });
+
+            for (const task of activeTasks) {
+              let modified = false;
+              const updatedSubTasks = [];
+
+              for (const st of task.subTasks) {
+                if (st.assignedToInternId === user._id.toString()) {
+                  if (st.status === 'completed' || (st.completedQuantity >= st.targetQuantity && st.targetQuantity > 0)) {
+                    // Fully completed subtask: preserve under blocked intern
+                    updatedSubTasks.push(st);
+                  } else if (st.completedQuantity > 0 && st.completedQuantity < st.targetQuantity) {
+                    // Partially completed subtask: preserve completed portion under blocked intern
+                    const remainingQty = st.targetQuantity - st.completedQuantity;
+                    st.targetQuantity = st.completedQuantity;
+                    st.status = 'completed';
+                    updatedSubTasks.push(st);
+
+                    // Create remainder subtask for target intern
+                    updatedSubTasks.push({
+                      assignedToInternId: targetIntern._id.toString(),
+                      assignedByEmployeeId: st.assignedByEmployeeId || req.user._id.toString(),
+                      targetQuantity: remainingQty,
+                      completedQuantity: 0,
+                      status: 'notstarted'
+                    });
+                    modified = true;
+                  } else {
+                    // Unstarted subtask: transfer directly to target intern
+                    st.assignedToInternId = targetIntern._id.toString();
+                    updatedSubTasks.push(st);
+                    modified = true;
+                  }
+                } else {
+                  updatedSubTasks.push(st);
+                }
+              }
+
+              if (modified) {
+                task.subTasks = updatedSubTasks;
+                await task.save();
+              }
+            }
+
+            // Reassign automated delegation rules in EmployeeTarget
+            await EmployeeTarget.updateMany(
+              { "delegations.internId": user._id.toString() },
+              { $set: { "delegations.$[elem].internId": targetIntern._id.toString() } },
+              { arrayFilters: [{ "elem.internId": user._id.toString() }] }
+            );
+
+            // Notify newly assigned intern
+            await Notification.create({
+              title: 'Tasks Reassigned',
+              message: `Pending tasks from ${user.name} have been reassigned to you.`,
+              category: 'task',
+              severity: 'info',
+              userId: targetIntern._id
+            });
+          }
+        } else {
+          // No reassignment: remove unstarted/pending subtasks from active tasks (keep completed work)
+          const activeTasks = await Task.find({
+            "subTasks.assignedToInternId": user._id.toString(),
+            status: { $ne: 'completed' }
+          });
+
+          for (const task of activeTasks) {
+            task.subTasks = task.subTasks.filter(st => {
+              if (st.assignedToInternId !== user._id.toString()) return true;
+              return st.status === 'completed' || (st.completedQuantity > 0);
+            });
+            const totalCompleted = task.subTasks.reduce((acc, st) => acc + (st.completedQuantity || 0), 0);
+            task.completedQuantity = Math.max(task.completedQuantity || 0, totalCompleted);
+            if (task.completedQuantity >= task.targetQuantity) {
+              task.status = 'completed';
+            } else if (task.completedQuantity > 0) {
+              task.status = 'inprogress';
+            }
+            await task.save();
+          }
+
+          // Clean up delegation rules in EmployeeTarget
+          await EmployeeTarget.updateMany(
+            {},
+            { $pull: { delegations: { internId: user._id.toString() } } }
+          );
+        }
+      } else if (user.role === 'employee' && targetUserId) {
+        // Employee block with reassignment
+        const targetEmployee = await User.findOne({
+          _id: targetUserId,
+          isBlocked: { $ne: true }
+        });
+
+        if (targetEmployee) {
+          await Task.updateMany(
+            { employeeId: user._id.toString(), status: { $ne: 'completed' } },
+            { $set: { employeeId: targetEmployee._id.toString(), assignedTo: targetEmployee.name } }
+          );
+
+          await EmployeeTarget.updateMany(
+            { employeeId: user._id, status: 'In Progress' },
+            { $set: { employeeId: targetEmployee._id } }
+          );
+
+          await Notification.create({
+            title: 'Tasks Reassigned',
+            message: `Active tasks from ${user.name} have been reassigned to you.`,
+            category: 'task',
+            severity: 'info',
+            userId: targetEmployee._id
+          });
+        }
+      }
+    }
+
+    // Notify Managers
+    const managers = await User.find({ role: 'manager' });
+    if (managers.length > 0) {
+      const managerNotifications = managers.map(m => ({
+        title: user.isBlocked ? 'User Blocked' : 'User Unblocked',
+        message: `${req.user?.name || 'Administrator'} ${user.isBlocked ? 'blocked' : 'unblocked'} ${user.role} ${user.name}.`,
+        category: 'system',
+        severity: user.isBlocked ? 'warning' : 'info',
+        userId: m._id
+      }));
+      await Notification.insertMany(managerNotifications);
+    }
+
+    res.json({
+      success: true,
+      message: user.isBlocked ? "User blocked successfully" : "User unblocked successfully",
+      data: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isBlocked: user.isBlocked,
+        blockedAt: user.blockedAt
+      }
+    });
+  } catch (error) {
+    console.error("Error toggling block user:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 export {
   loginUser,
   logoutUser,
@@ -654,4 +855,5 @@ export {
   deleteMyIntern,
   updateMyInternPassword,
   reassignAndDeleteIntern,
+  toggleBlockUser,
 };

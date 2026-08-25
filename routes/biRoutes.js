@@ -274,4 +274,58 @@ Keep your responses professional and formatted clearly in Markdown. By default, 
   }
 });
 
+// --- Monthly Performance Report Trigger & Preview Endpoints ---
+import { sendMonthlyPerformanceReports, compileUserMonthlyPerformance, generateMonthlyReportHTML, getPreviousMonthDateRange } from "../services/monthlyReportService.js";
+
+// 5. Trigger or Preview Monthly Performance Reports
+router.post("/send-monthly-reports", async (req, res) => {
+  try {
+    const { referenceDate, previewOnly, targetUserId, sendToEmail } = req.body;
+    
+    // Only managers / admins allowed to trigger bulk reports
+    if (req.user.role !== 'manager' && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Forbidden. Manager or admin access required.' });
+    }
+
+    const reportSummary = await sendMonthlyPerformanceReports({
+      referenceDate: referenceDate ? new Date(referenceDate) : new Date(),
+      previewOnly: Boolean(previewOnly),
+      targetUserId: targetUserId || null,
+      sendToEmail: sendToEmail || null,
+    });
+
+    res.json({
+      success: true,
+      data: reportSummary,
+    });
+  } catch (error) {
+    console.error("Error sending monthly reports:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 6. Preview single user HTML report in browser
+router.get("/monthly-report-preview/:userId", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) {
+      return res.status(404).send("User not found");
+    }
+
+    const { startDate, endDate, monthLabel } = getPreviousMonthDateRange(req.query.date ? new Date(req.query.date) : new Date());
+    const performanceData = await compileUserMonthlyPerformance(user, startDate, endDate, monthLabel);
+    
+    if (!performanceData) {
+      return res.status(400).send("User is blocked or has no report data available.");
+    }
+
+    const html = generateMonthlyReportHTML(performanceData);
+    res.setHeader("Content-Type", "text/html");
+    res.send(html);
+  } catch (error) {
+    console.error("Error rendering preview:", error);
+    res.status(500).send(`Error rendering report preview: ${error.message}`);
+  }
+});
+
 export default router;
