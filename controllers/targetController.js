@@ -552,7 +552,7 @@ export const getCompanyEmployeeTargets = async (req, res) => {
 
     const targets = await EmployeeTarget.find(query)
       .populate("employeeId", "name email")
-      .populate("templateId", "name metric defaultGoalValue");
+      .populate("templateId", "name metric defaultGoalValue department");
 
     const groupedTargets = targets.reduce((acc, target) => {
       if (!target.employeeId) return acc;
@@ -649,22 +649,37 @@ export const addDelegation = async (req, res) => {
 
     // Retroactively inject subtasks into uncompleted tasks for this target's timeframe
     const department = target.templateId?.department || target.targetType || "SMM";
-    const templateName = target.templateId?.name || `${department} Task`;
-    
-    const baseQuery = {
-      employeeId: target.employeeId,
-      companyId: target.companyId,
-      isAutomated: true,
-      department,
-      title: templateName,
-      type: templateName,
-      ...(department === 'SMM' && { platform: target.platform || "Both" })
-    };
+    const templateName = target.templateId?.name || target.customName || `${department} Task`;
+    const empIdStr = target.employeeId?.toString();
+
+    const andConditions = [
+      { $or: [{ employeeId: empIdStr }, { employeeId: target.employeeId }] },
+      { companyId: target.companyId },
+      { department: new RegExp(`^${department}$`, "i") },
+      {
+        $or: [
+          { title: templateName },
+          { type: templateName },
+          { title: new RegExp(templateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "i") },
+          { type: new RegExp(templateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "i") }
+        ]
+      }
+    ];
+
+    if (department.toUpperCase() === 'SMM' && target.platform && target.platform !== 'Both') {
+      andConditions.push({ platform: target.platform });
+    }
+
+    if (target.startDate) {
+      andConditions.push({ dueDate: { $gte: target.startDate } });
+    }
+    if (target.endDate) {
+      andConditions.push({ dueDate: { $lte: target.endDate } });
+    }
 
     const tasksToUpdate = await Task.find({
-      ...baseQuery,
+      $and: andConditions,
       status: { $ne: 'completed' },
-      dueDate: { $gte: target.startDate, $lte: target.endDate }
     });
 
     for (const task of tasksToUpdate) {
@@ -736,22 +751,37 @@ export const removeDelegation = async (req, res) => {
 
     // Remove subtasks from uncompleted tasks
     const department = target.templateId?.department || target.targetType || "SMM";
-    const templateName = target.templateId?.name || `${department} Task`;
-    
-    const baseQuery = {
-      employeeId: target.employeeId,
-      companyId: target.companyId,
-      isAutomated: true,
-      department,
-      title: templateName,
-      type: templateName,
-      ...(department === 'SMM' && { platform: target.platform || "Both" })
-    };
+    const templateName = target.templateId?.name || target.customName || `${department} Task`;
+    const empIdStr = target.employeeId?.toString();
+
+    const andConditions = [
+      { $or: [{ employeeId: empIdStr }, { employeeId: target.employeeId }] },
+      { companyId: target.companyId },
+      { department: new RegExp(`^${department}$`, "i") },
+      {
+        $or: [
+          { title: templateName },
+          { type: templateName },
+          { title: new RegExp(templateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "i") },
+          { type: new RegExp(templateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "i") }
+        ]
+      }
+    ];
+
+    if (department.toUpperCase() === 'SMM' && target.platform && target.platform !== 'Both') {
+      andConditions.push({ platform: target.platform });
+    }
+
+    if (target.startDate) {
+      andConditions.push({ dueDate: { $gte: target.startDate } });
+    }
+    if (target.endDate) {
+      andConditions.push({ dueDate: { $lte: target.endDate } });
+    }
 
     const tasksToUpdate = await Task.find({
-      ...baseQuery,
+      $and: andConditions,
       status: { $ne: 'completed' },
-      dueDate: { $gte: target.startDate, $lte: target.endDate }
     });
 
     for (const task of tasksToUpdate) {
