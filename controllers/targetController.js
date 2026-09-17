@@ -702,28 +702,39 @@ export const addDelegation = async (req, res) => {
       await task.save();
     }
     const employee = await User.findById(target.employeeId);
+
+    // Resolve the string companyId (e.g. "ikc") to the Company's ObjectId
+    let companyObjectId = null;
+    if (target.companyId) {
+      const company = await Company.findOne({ id: target.companyId });
+      if (company) companyObjectId = company._id;
+    }
     
     // Notify Intern
-    await Notification.create({
+    const internNotif = {
       title: 'New Delegation',
       message: `${employee?.name || 'An employee'} delegated ${targetQuantity} tasks of ${templateName} to you.`,
       category: 'delegation',
       severity: 'info',
       userId: internId,
-      companyId: target.companyId
-    });
+    };
+    if (companyObjectId) internNotif.companyId = companyObjectId;
+    await Notification.create(internNotif);
 
     // Notify Managers
     const managers = await User.find({ role: 'manager' });
     if (managers.length > 0) {
-      const managerNotifications = managers.map(m => ({
-        title: 'Delegation Created',
-        message: `${employee?.name || 'An employee'} delegated ${targetQuantity} ${templateName} tasks to intern ${intern.name}.`,
-        category: 'delegation',
-        severity: 'info',
-        userId: m._id,
-        companyId: target.companyId
-      }));
+      const managerNotifications = managers.map(m => {
+        const notif = {
+          title: 'Delegation Created',
+          message: `${employee?.name || 'An employee'} delegated ${targetQuantity} ${templateName} tasks to intern ${intern.name}.`,
+          category: 'delegation',
+          severity: 'info',
+          userId: m._id,
+        };
+        if (companyObjectId) notif.companyId = companyObjectId;
+        return notif;
+      });
       await Notification.insertMany(managerNotifications);
     }
 
@@ -802,28 +813,39 @@ export const removeDelegation = async (req, res) => {
     }
     const employee = await User.findById(target.employeeId);
     const intern = await User.findById(internId);
+
+    // Resolve the string companyId (e.g. "ikc") to the Company's ObjectId
+    let companyObjectId = null;
+    if (target.companyId) {
+      const company = await Company.findOne({ id: target.companyId });
+      if (company) companyObjectId = company._id;
+    }
     
     // Notify Intern
-    await Notification.create({
+    const internNotif = {
       title: 'Delegation Removed',
       message: `Your delegation for ${templateName} has been removed.`,
       category: 'delegation',
       severity: 'warning',
       userId: internId,
-      companyId: target.companyId
-    });
+    };
+    if (companyObjectId) internNotif.companyId = companyObjectId;
+    await Notification.create(internNotif);
 
     // Notify Managers
     const managers = await User.find({ role: 'manager' });
     if (managers.length > 0) {
-      const managerNotifications = managers.map(m => ({
-        title: 'Delegation Removed',
-        message: `${employee?.name || 'An employee'} removed ${intern?.name || 'intern'}'s delegation for ${templateName}.`,
-        category: 'delegation',
-        severity: 'info',
-        userId: m._id,
-        companyId: target.companyId
-      }));
+      const managerNotifications = managers.map(m => {
+        const notif = {
+          title: 'Delegation Removed',
+          message: `${employee?.name || 'An employee'} removed ${intern?.name || 'intern'}'s delegation for ${templateName}.`,
+          category: 'delegation',
+          severity: 'info',
+          userId: m._id,
+        };
+        if (companyObjectId) notif.companyId = companyObjectId;
+        return notif;
+      });
       await Notification.insertMany(managerNotifications);
     }
 
