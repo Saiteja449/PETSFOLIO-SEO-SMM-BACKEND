@@ -650,13 +650,31 @@ export const addDelegation = async (req, res) => {
       return res.status(400).json({ success: false, message: "Cannot delegate tasks to a deactivated/blocked intern." });
     }
 
+    const requestedQty = Number(targetQuantity);
+    if (isNaN(requestedQty) || requestedQty <= 0) {
+      return res.status(400).json({ success: false, message: "Target quantity must be a positive number." });
+    }
+
+    const maxTargetGoal = Math.max(
+      Number(target.targetGoal) || 0,
+      Number(target.monthlyTarget) || 0,
+      Number(target.weeklyTarget) || 0,
+    );
+
+    if (maxTargetGoal > 0 && requestedQty > maxTargetGoal) {
+      return res.status(400).json({
+        success: false,
+        message: `Target quantity cannot exceed the total target goal of ${maxTargetGoal}.`
+      });
+    }
+
     // Add or update delegation rule on the target
     const existingDelegationIndex = target.delegations.findIndex(d => d.internId === internId);
     if (existingDelegationIndex > -1) {
-      target.delegations[existingDelegationIndex].targetQuantity = targetQuantity;
+      target.delegations[existingDelegationIndex].targetQuantity = requestedQty;
       target.delegations[existingDelegationIndex].notes = notes;
     } else {
-      target.delegations.push({ internId, targetQuantity, notes });
+      target.delegations.push({ internId, targetQuantity: requestedQty, notes });
     }
     await target.save();
 
