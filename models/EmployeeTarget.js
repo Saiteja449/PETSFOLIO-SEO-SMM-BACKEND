@@ -84,12 +84,32 @@ const EmployeeTargetSchema = new mongoose.Schema(
       {
         internId: { type: String, required: true },
         targetQuantity: { type: Number, required: true },
-        notes: { type: String }
-      }
-    ]
+        notes: { type: String },
+      },
+    ],
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  },
 );
+
+EmployeeTargetSchema.virtual('seoTemplateId').get(function () {
+  return this.targetType === 'SEO' ? this.templateId : undefined;
+});
+
+EmployeeTargetSchema.virtual('contentTemplateId').get(function () {
+  return this.targetType === 'Content' ? this.templateId : undefined;
+});
+
+EmployeeTargetSchema.virtual('salesTemplateId').get(function () {
+  return this.targetType === 'Sales' ? this.templateId : undefined;
+});
+
+EmployeeTargetSchema.virtual('creativeTemplateId').get(function () {
+  return this.targetType === 'Creative' ? this.templateId : undefined;
+});
 
 const EmployeeTarget = mongoose.model("EmployeeTarget", EmployeeTargetSchema);
 export default EmployeeTarget;

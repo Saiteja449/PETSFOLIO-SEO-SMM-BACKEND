@@ -148,7 +148,13 @@ const getCurrentMonthRange = (referenceDate) => {
 };
 
 const getTaskGenerationContext = async (assignment, user, employeeId, companyId) => {
-  const template = await TaskTemplate.findById(assignment.templateId);
+  const actualTemplateId =
+    assignment.templateId ||
+    assignment.seoTemplateId ||
+    assignment.contentTemplateId ||
+    assignment.salesTemplateId ||
+    assignment.creativeTemplateId;
+  const template = actualTemplateId ? await TaskTemplate.findById(actualTemplateId) : null;
   const department = template?.department || assignment.targetType || "SMM";
   const templateName = template?.name || `${department} Task`;
   const templateType = template?.name || `${department} Task`;
@@ -433,7 +439,14 @@ export const assignBatchTargets = async (req, res) => {
     const fullMonthWorkingDays = getWorkingDaysInMonth(now.getFullYear(), now.getMonth(), holidaySet);
 
     for (const assignment of assignments) {
-      const template = await TaskTemplate.findById(assignment.templateId);
+      const actualTemplateId =
+        assignment.templateId ||
+        assignment.seoTemplateId ||
+        assignment.contentTemplateId ||
+        assignment.salesTemplateId ||
+        assignment.creativeTemplateId;
+
+      const template = actualTemplateId ? await TaskTemplate.findById(actualTemplateId) : null;
       const targetType = template?.department || assignment.targetType || 'SMM';
       
       const targetGoal = Number.parseInt(assignment.targetGoal, 10) || 0;
@@ -448,7 +461,7 @@ export const assignBatchTargets = async (req, res) => {
       }
 
       const targetData = {
-        employeeId, managerId, companyId, templateId: assignment.templateId, targetType,
+        employeeId, managerId, companyId, templateId: actualTemplateId, targetType,
         customName: assignment.customName, platform: assignment.platform,
         metric: assignment.metric, monthlyTarget: calcMonthlyTarget,
         weeklyTarget: assignment.weeklyTarget, frequency: assignment.frequency,
@@ -458,7 +471,7 @@ export const assignBatchTargets = async (req, res) => {
       };
 
       const existingTarget = await EmployeeTarget.findOne({
-        employeeId, companyId, templateId: assignment.templateId,
+        employeeId, companyId, templateId: actualTemplateId,
         startDate: targetData.startDate, endDate: targetData.endDate,
       });
 
