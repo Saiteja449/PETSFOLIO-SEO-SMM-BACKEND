@@ -18,18 +18,38 @@ const recalculateTargetProgress = async (employeeId, taskType, department) => {
     });
 
     for (const target of targets) {
-      // Count completed Tasks for this employee & type & dept within the target's start and end dates
-      const completedTasks = await Task.find({
+      // Count completed tasks directly assigned OR completed subtasks assigned to this user
+      const directCompletedTasks = await Task.find({
         employeeId,
         department,
         type: taskType,
         status: "completed",
         createdAt: { $gte: target.startDate, $lte: target.endDate },
       });
-      const completedCount = completedTasks.reduce(
+      let completedCount = directCompletedTasks.reduce(
         (acc, t) => acc + (t.completedQuantity || 1),
         0,
       );
+
+      // Check subtasks assigned to this user as intern
+      const subtaskTasks = await Task.find({
+        department,
+        type: taskType,
+        "subTasks.assignedToInternId": employeeId,
+        createdAt: { $gte: target.startDate, $lte: target.endDate },
+      });
+      subtaskTasks.forEach((tsk) => {
+        const myCompletedSubs = (tsk.subTasks || []).filter(
+          (st) =>
+            String(st.assignedToInternId) === String(employeeId) &&
+            (st.status === "completed" ||
+              (st.targetQuantity > 0 &&
+                (st.completedQuantity || 0) >= st.targetQuantity)),
+        );
+        myCompletedSubs.forEach((st) => {
+          completedCount += st.completedQuantity || st.targetQuantity || 1;
+        });
+      });
 
       target.currentValue = completedCount;
       const goalValue =
@@ -479,6 +499,14 @@ export const updateSubTask = async (req, res) => {
       if (empId) {
         await recalculateTargetProgress(empId, task.type, task.department);
       }
+    }
+
+    if (subTask.assignedToInternId) {
+      await recalculateTargetProgress(
+        subTask.assignedToInternId,
+        task.type,
+        task.department,
+      );
     }
 
     // Notifications (wrapped in try/catch to avoid breaking the subtask update if a notification fails)
