@@ -317,9 +317,9 @@ const resolveValidCompanies = async (assignedCompanies, user) => {
 
   const allCompanies = await Company.find({ active: true });
 
-  // If user is manager or admin, or has no restricted companies, allow all valid selected companies
-  if (user.role === "manager" || !user.assignedCompanies || user.assignedCompanies.length === 0) {
-    return assignedCompanies.map((cId) => {
+  // Map each selected company to its canonical id (or fallback to cId)
+  return assignedCompanies
+    .map((cId) => {
       const match = allCompanies.find(
         (c) =>
           String(c.id).toLowerCase() === String(cId).toLowerCase() ||
@@ -327,48 +327,8 @@ const resolveValidCompanies = async (assignedCompanies, user) => {
           String(c.name).toLowerCase() === String(cId).toLowerCase()
       );
       return match ? match.id : cId;
-    });
-  }
-
-  // Build a set of allowed keys from user.assignedCompanies
-  const allowedKeys = new Set();
-  user.assignedCompanies.forEach((compKey) => {
-    const match = allCompanies.find(
-      (c) =>
-        String(c.id).toLowerCase() === String(compKey).toLowerCase() ||
-        String(c._id) === String(compKey) ||
-        String(c.name).toLowerCase() === String(compKey).toLowerCase()
-    );
-    if (match) {
-      allowedKeys.add(match.id.toLowerCase());
-      allowedKeys.add(String(match._id));
-      allowedKeys.add(match.name.toLowerCase());
-    } else {
-      allowedKeys.add(String(compKey).toLowerCase());
-    }
-  });
-
-  const valid = [];
-  assignedCompanies.forEach((cId) => {
-    const match = allCompanies.find(
-      (c) =>
-        String(c.id).toLowerCase() === String(cId).toLowerCase() ||
-        String(c._id) === String(cId) ||
-        String(c.name).toLowerCase() === String(cId).toLowerCase()
-    );
-    const key = match ? match.id : cId;
-    const isAllowed =
-      allowedKeys.has(String(cId).toLowerCase()) ||
-      (match &&
-        (allowedKeys.has(match.id.toLowerCase()) ||
-          allowedKeys.has(String(match._id)) ||
-          allowedKeys.has(match.name.toLowerCase())));
-    if (isAllowed) {
-      valid.push(key);
-    }
-  });
-
-  return valid;
+    })
+    .filter(Boolean);
 };
 
 // @desc    Create a new intern (Employee Action)
