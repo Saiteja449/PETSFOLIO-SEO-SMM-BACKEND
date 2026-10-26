@@ -42,19 +42,19 @@ router.route('/employees/:id/toggle-block')
 
 // Generic User Toggle Block
 router.route('/users/:id/toggle-block')
-  .put(protect, employeeOrIntern, toggleBlockUser);
+  .put(protect, managerOrEmployee, toggleBlockUser);
 
 // Intern Management
 router.route('/my-interns')
   .post(protect, managerOrEmployee, createIntern)
-  .get(protect, employeeOrIntern, getMyInterns);
+  .get(protect, getMyInterns);
 
 router.route('/my-interns/:id')
   .put(protect, managerOrEmployee, updateMyIntern)
   .delete(protect, managerOrEmployee, deleteMyIntern);
 
 router.route('/my-interns/:id/toggle-block')
-  .put(protect, employeeOrIntern, toggleBlockUser);
+  .put(protect, managerOrEmployee, toggleBlockUser);
 
 router.route('/my-interns/:id/reassign-and-delete')
   .post(protect, managerOrEmployee, reassignAndDeleteIntern);

@@ -109,20 +109,13 @@ async function executeQueryDatabase(params) {
     } else if (collection === 'targets') {
       return await EmployeeTarget.find(filter).populate("employeeId", "name").populate("managerId", "name").limit(limit).lean();
     } else if (collection === 'tasks') {
-      let results = {};
-      const loadTasks = async (modelPath) => {
-          const Model = (await import(modelPath)).default;
-          return await Model.find(filter).select("-description -url").sort({createdAt: -1}).limit(limit).populate("employeeId", "name").lean();
-      };
-      
+      const Task = (await import("../models/Task.js")).default;
       const t = (taskType || 'all').toLowerCase();
-      if (t === 'smm' || t === 'all') results.smm = await loadTasks("../models/SmmTask.js");
-      if (t === 'seo' || t === 'all') results.seo = await loadTasks("../models/SeoTask.js");
-      if (t === 'content' || t === 'all') results.content = await loadTasks("../models/ContentTask.js");
-      if (t === 'sales' || t === 'all') results.sales = await loadTasks("../models/SalesTask.js");
-      if (t === 'creative' || t === 'all') results.creative = await loadTasks("../models/CreativeTask.js");
-      
-      return results;
+      const taskFilter = { ...filter };
+      if (t !== 'all') {
+        taskFilter.department = new RegExp(`^${t}$`, 'i');
+      }
+      return await Task.find(taskFilter).select("-description -url").sort({createdAt: -1}).limit(limit).populate("employeeId", "name").lean();
     }
     return { error: "Unknown collection or no data found" };
   } catch (err) {

@@ -58,6 +58,14 @@ const employee = (req, res, next) => {
   }
 };
 
+const employeeOrIntern = (req, res, next) => {
+  if (req.user && (req.user.role === 'employee' || req.user.role === 'intern')) {
+    next();
+  } else {
+    res.status(403).json({ message: 'Not authorized as an employee or intern' });
+  }
+};
+
 const managerOrEmployee = (req, res, next) => {
   if (req.user && (req.user.role === 'manager' || req.user.role === 'employee')) {
     next();
