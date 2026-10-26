@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import Company from "../models/Company.js";
 import Task from "../models/Task.js";
 import EmployeeTarget from "../models/EmployeeTarget.js";
 import jwt from "jsonwebtoken";
@@ -24,7 +25,8 @@ const loginUser = async (req, res) => {
       if (user.isBlocked) {
         return res.status(403).json({
           success: false,
-          message: "Your account is currently deactivated/blocked. Please contact your administrator.",
+          message:
+            "Your account is currently deactivated/blocked. Please contact your administrator.",
         });
       }
 
@@ -146,14 +148,14 @@ const createEmployee = async (req, res) => {
     });
 
     // Notify Managers
-    const managers = await User.find({ role: 'manager' });
+    const managers = await User.find({ role: "manager" });
     if (managers.length > 0) {
-      const managerNotifications = managers.map(m => ({
-        title: 'New Employee',
+      const managerNotifications = managers.map((m) => ({
+        title: "New Employee",
         message: `${name} has been added to the team.`,
-        category: 'system',
-        severity: 'info',
-        userId: m._id
+        category: "system",
+        severity: "info",
+        userId: m._id,
       }));
       await Notification.insertMany(managerNotifications);
     }
@@ -310,6 +312,65 @@ const updateEmployee = async (req, res) => {
   }
 };
 
+const resolveValidCompanies = async (assignedCompanies, user) => {
+  if (!assignedCompanies || !Array.isArray(assignedCompanies)) return [];
+
+  const allCompanies = await Company.find({ active: true });
+
+  // If user is manager or admin, or has no restricted companies, allow all valid selected companies
+  if (user.role === "manager" || !user.assignedCompanies || user.assignedCompanies.length === 0) {
+    return assignedCompanies.map((cId) => {
+      const match = allCompanies.find(
+        (c) =>
+          String(c.id).toLowerCase() === String(cId).toLowerCase() ||
+          String(c._id) === String(cId) ||
+          String(c.name).toLowerCase() === String(cId).toLowerCase()
+      );
+      return match ? match.id : cId;
+    });
+  }
+
+  // Build a set of allowed keys from user.assignedCompanies
+  const allowedKeys = new Set();
+  user.assignedCompanies.forEach((compKey) => {
+    const match = allCompanies.find(
+      (c) =>
+        String(c.id).toLowerCase() === String(compKey).toLowerCase() ||
+        String(c._id) === String(compKey) ||
+        String(c.name).toLowerCase() === String(compKey).toLowerCase()
+    );
+    if (match) {
+      allowedKeys.add(match.id.toLowerCase());
+      allowedKeys.add(String(match._id));
+      allowedKeys.add(match.name.toLowerCase());
+    } else {
+      allowedKeys.add(String(compKey).toLowerCase());
+    }
+  });
+
+  const valid = [];
+  assignedCompanies.forEach((cId) => {
+    const match = allCompanies.find(
+      (c) =>
+        String(c.id).toLowerCase() === String(cId).toLowerCase() ||
+        String(c._id) === String(cId) ||
+        String(c.name).toLowerCase() === String(cId).toLowerCase()
+    );
+    const key = match ? match.id : cId;
+    const isAllowed =
+      allowedKeys.has(String(cId).toLowerCase()) ||
+      (match &&
+        (allowedKeys.has(match.id.toLowerCase()) ||
+          allowedKeys.has(String(match._id)) ||
+          allowedKeys.has(match.name.toLowerCase())));
+    if (isAllowed) {
+      valid.push(key);
+    }
+  });
+
+  return valid;
+};
+
 // @desc    Create a new intern (Employee Action)
 // @route   POST /api/auth/my-interns
 // @access  Private/Employee
@@ -324,17 +385,11 @@ const createIntern = async (req, res) => {
         .json({ success: false, message: "User already exists" });
     }
 
-    // Ensure employee only assigns companies they are assigned to
     const employee = await User.findById(req.user._id);
-    let validAssignedCompanies = [];
-    if (assignedCompanies && Array.isArray(assignedCompanies)) {
-      const empCompStrings = employee.assignedCompanies.map((id) =>
-        id.toString(),
-      );
-      validAssignedCompanies = assignedCompanies.filter((cId) =>
-        empCompStrings.includes(cId.toString()),
-      );
-    }
+    const validAssignedCompanies = await resolveValidCompanies(
+      assignedCompanies,
+      employee || req.user
+    );
 
     let validDepartments = [];
     if (department && Array.isArray(department)) {
@@ -357,14 +412,14 @@ const createIntern = async (req, res) => {
     });
 
     // Notify Managers
-    const managers = await User.find({ role: 'manager' });
+    const managers = await User.find({ role: "manager" });
     if (managers.length > 0) {
-      const managerNotifications = managers.map(m => ({
-        title: 'New Intern',
-        message: `${employee?.name || 'An employee'} added intern ${intern.name}.`,
-        category: 'intern',
-        severity: 'info',
-        userId: m._id
+      const managerNotifications = managers.map((m) => ({
+        title: "New Intern",
+        message: `${employee?.name || "An employee"} added intern ${intern.name}.`,
+        category: "intern",
+        severity: "info",
+        userId: m._id,
       }));
       await Notification.insertMany(managerNotifications);
     }
@@ -413,12 +468,10 @@ const updateMyIntern = async (req, res) => {
     });
 
     if (!intern) {
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Intern not found or not authorized",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Intern not found or not authorized",
+      });
     }
 
     if (name) intern.name = name;
@@ -438,17 +491,15 @@ const updateMyIntern = async (req, res) => {
       const employee = await User.findById(req.user._id);
 
       if (assignedCompanies) {
-        const empCompStrings = employee.assignedCompanies.map((id) =>
-          id.toString(),
-        );
-        intern.assignedCompanies = assignedCompanies.filter((cId) =>
-          empCompStrings.includes(cId.toString()),
+        intern.assignedCompanies = await resolveValidCompanies(
+          assignedCompanies,
+          employee || req.user
         );
       }
 
       if (department) {
         intern.department = department.filter((d) =>
-          employee.department.includes(d),
+          employee ? employee.department.includes(d) : true,
         );
       }
     }
@@ -481,12 +532,10 @@ const deleteMyIntern = async (req, res) => {
     });
 
     if (!intern) {
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Intern not found or not authorized",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Intern not found or not authorized",
+      });
     }
 
     const internName = intern.name;
@@ -494,14 +543,14 @@ const deleteMyIntern = async (req, res) => {
 
     // Notify Managers
     const employee = await User.findById(req.user._id);
-    const managers = await User.find({ role: 'manager' });
+    const managers = await User.find({ role: "manager" });
     if (managers.length > 0) {
-      const managerNotifications = managers.map(m => ({
-        title: 'Intern Removed',
-        message: `${employee?.name || 'An employee'} removed intern ${internName}.`,
-        category: 'intern',
-        severity: 'info',
-        userId: m._id
+      const managerNotifications = managers.map((m) => ({
+        title: "Intern Removed",
+        message: `${employee?.name || "An employee"} removed intern ${internName}.`,
+        category: "intern",
+        severity: "info",
+        userId: m._id,
       }));
       await Notification.insertMany(managerNotifications);
     }
@@ -526,12 +575,10 @@ const updateMyInternPassword = async (req, res) => {
     });
 
     if (!intern) {
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Intern not found or not authorized",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Intern not found or not authorized",
+      });
     }
 
     intern.password = password;
@@ -557,18 +604,18 @@ const reassignAndDeleteIntern = async (req, res) => {
     });
 
     if (!internToDelete) {
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Intern to delete not found or not authorized",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Intern to delete not found or not authorized",
+      });
     }
 
     // Helper to safely update a task model if it exists
     const safeUpdate = async (modelName, filter, update, options) => {
       if (mongoose.modelNames().includes(modelName)) {
-        return await mongoose.model(modelName).updateMany(filter, update, options);
+        return await mongoose
+          .model(modelName)
+          .updateMany(filter, update, options);
       } else {
         console.warn(`Model ${modelName} not found, skipping update.`);
         return null;
@@ -582,19 +629,26 @@ const reassignAndDeleteIntern = async (req, res) => {
       });
 
       if (!newIntern) {
-        return res
-          .status(404)
-          .json({
-            success: false,
-            message: "New intern not found or not authorized",
-          });
+        return res.status(404).json({
+          success: false,
+          message: "New intern not found or not authorized",
+        });
       }
 
       // Reassign subtasks
-      await safeUpdate("Task", { "subTasks.assignedToInternId": internIdToDelete }, { $set: { "subTasks.$[elem].assignedToInternId": newInternId } }, { arrayFilters: [{ "elem.assignedToInternId": internIdToDelete }] });
+      await safeUpdate(
+        "Task",
+        { "subTasks.assignedToInternId": internIdToDelete },
+        { $set: { "subTasks.$[elem].assignedToInternId": newInternId } },
+        { arrayFilters: [{ "elem.assignedToInternId": internIdToDelete }] },
+      );
     } else {
       // Delete subtasks
-      await safeUpdate("Task", { "subTasks.assignedToInternId": internIdToDelete }, { $pull: { subTasks: { assignedToInternId: internIdToDelete } } });
+      await safeUpdate(
+        "Task",
+        { "subTasks.assignedToInternId": internIdToDelete },
+        { $pull: { subTasks: { assignedToInternId: internIdToDelete } } },
+      );
     }
 
     const internName = internToDelete.name;
@@ -602,40 +656,40 @@ const reassignAndDeleteIntern = async (req, res) => {
 
     // Notifications
     const employee = await User.findById(req.user._id);
-    const managers = await User.find({ role: 'manager' });
-    
+    const managers = await User.find({ role: "manager" });
+
     if (newInternId) {
       const newIntern = await User.findById(newInternId);
-      
+
       // Notify New Intern
       await Notification.create({
-        title: 'Tasks Reassigned',
+        title: "Tasks Reassigned",
         message: `You have been assigned tasks from ${internName}.`,
-        category: 'task',
-        severity: 'info',
-        userId: newInternId
+        category: "task",
+        severity: "info",
+        userId: newInternId,
       });
 
       // Notify Managers
       if (managers.length > 0) {
-        const managerNotifications = managers.map(m => ({
-          title: 'Intern Replaced',
-          message: `${internName}'s tasks reassigned to ${newIntern?.name || 'another intern'} and account removed.`,
-          category: 'intern',
-          severity: 'info',
-          userId: m._id
+        const managerNotifications = managers.map((m) => ({
+          title: "Intern Replaced",
+          message: `${internName}'s tasks reassigned to ${newIntern?.name || "another intern"} and account removed.`,
+          category: "intern",
+          severity: "info",
+          userId: m._id,
         }));
         await Notification.insertMany(managerNotifications);
       }
     } else {
       // Notify Managers
       if (managers.length > 0) {
-        const managerNotifications = managers.map(m => ({
-          title: 'Intern Removed',
-          message: `${employee?.name || 'An employee'} removed intern ${internName}.`,
-          category: 'intern',
-          severity: 'info',
-          userId: m._id
+        const managerNotifications = managers.map((m) => ({
+          title: "Intern Removed",
+          message: `${employee?.name || "An employee"} removed intern ${internName}.`,
+          category: "intern",
+          severity: "info",
+          userId: m._id,
         }));
         await Notification.insertMany(managerNotifications);
       }
@@ -656,12 +710,16 @@ const toggleBlockUser = async (req, res) => {
     const user = await User.findById(req.params.id);
 
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
 
     // Role check: Employees can only block interns they manage or created
-    if (req.user.role === 'employee' && user.role !== 'intern') {
-      return res.status(403).json({ success: false, message: "Unauthorized to modify this user" });
+    if (req.user.role === "employee" && user.role !== "intern") {
+      return res
+        .status(403)
+        .json({ success: false, message: "Unauthorized to modify this user" });
     }
 
     user.isBlocked = !user.isBlocked;
@@ -678,7 +736,7 @@ const toggleBlockUser = async (req, res) => {
       const { reassignTo, newInternId } = req.body || {};
       const targetUserId = reassignTo || newInternId;
 
-      if (user.role === 'intern') {
+      if (user.role === "intern") {
         if (targetUserId) {
           const targetIntern = await User.findOne({
             _id: targetUserId,
@@ -690,7 +748,7 @@ const toggleBlockUser = async (req, res) => {
             // Find all active/uncompleted tasks with subtasks assigned to the blocked intern
             const activeTasks = await Task.find({
               "subTasks.assignedToInternId": user._id.toString(),
-              status: { $ne: 'completed' }
+              status: { $ne: "completed" },
             });
 
             for (const task of activeTasks) {
@@ -699,23 +757,32 @@ const toggleBlockUser = async (req, res) => {
 
               for (const st of task.subTasks) {
                 if (st.assignedToInternId === user._id.toString()) {
-                  if (st.status === 'completed' || (st.completedQuantity >= st.targetQuantity && st.targetQuantity > 0)) {
+                  if (
+                    st.status === "completed" ||
+                    (st.completedQuantity >= st.targetQuantity &&
+                      st.targetQuantity > 0)
+                  ) {
                     // Fully completed subtask: preserve under blocked intern
                     updatedSubTasks.push(st);
-                  } else if (st.completedQuantity > 0 && st.completedQuantity < st.targetQuantity) {
+                  } else if (
+                    st.completedQuantity > 0 &&
+                    st.completedQuantity < st.targetQuantity
+                  ) {
                     // Partially completed subtask: preserve completed portion under blocked intern
-                    const remainingQty = st.targetQuantity - st.completedQuantity;
+                    const remainingQty =
+                      st.targetQuantity - st.completedQuantity;
                     st.targetQuantity = st.completedQuantity;
-                    st.status = 'completed';
+                    st.status = "completed";
                     updatedSubTasks.push(st);
 
                     // Create remainder subtask for target intern
                     updatedSubTasks.push({
                       assignedToInternId: targetIntern._id.toString(),
-                      assignedByEmployeeId: st.assignedByEmployeeId || req.user._id.toString(),
+                      assignedByEmployeeId:
+                        st.assignedByEmployeeId || req.user._id.toString(),
                       targetQuantity: remainingQty,
                       completedQuantity: 0,
-                      status: 'notstarted'
+                      status: "notstarted",
                     });
                     modified = true;
                   } else {
@@ -738,37 +805,47 @@ const toggleBlockUser = async (req, res) => {
             // Reassign automated delegation rules in EmployeeTarget
             await EmployeeTarget.updateMany(
               { "delegations.internId": user._id.toString() },
-              { $set: { "delegations.$[elem].internId": targetIntern._id.toString() } },
-              { arrayFilters: [{ "elem.internId": user._id.toString() }] }
+              {
+                $set: {
+                  "delegations.$[elem].internId": targetIntern._id.toString(),
+                },
+              },
+              { arrayFilters: [{ "elem.internId": user._id.toString() }] },
             );
 
             // Notify newly assigned intern
             await Notification.create({
-              title: 'Tasks Reassigned',
+              title: "Tasks Reassigned",
               message: `Pending tasks from ${user.name} have been reassigned to you.`,
-              category: 'task',
-              severity: 'info',
-              userId: targetIntern._id
+              category: "task",
+              severity: "info",
+              userId: targetIntern._id,
             });
           }
         } else {
           // No reassignment: remove unstarted/pending subtasks from active tasks (keep completed work)
           const activeTasks = await Task.find({
             "subTasks.assignedToInternId": user._id.toString(),
-            status: { $ne: 'completed' }
+            status: { $ne: "completed" },
           });
 
           for (const task of activeTasks) {
-            task.subTasks = task.subTasks.filter(st => {
+            task.subTasks = task.subTasks.filter((st) => {
               if (st.assignedToInternId !== user._id.toString()) return true;
-              return st.status === 'completed' || (st.completedQuantity > 0);
+              return st.status === "completed" || st.completedQuantity > 0;
             });
-            const totalCompleted = task.subTasks.reduce((acc, st) => acc + (st.completedQuantity || 0), 0);
-            task.completedQuantity = Math.max(task.completedQuantity || 0, totalCompleted);
+            const totalCompleted = task.subTasks.reduce(
+              (acc, st) => acc + (st.completedQuantity || 0),
+              0,
+            );
+            task.completedQuantity = Math.max(
+              task.completedQuantity || 0,
+              totalCompleted,
+            );
             if (task.completedQuantity >= task.targetQuantity) {
-              task.status = 'completed';
+              task.status = "completed";
             } else if (task.completedQuantity > 0) {
-              task.status = 'inprogress';
+              task.status = "inprogress";
             }
             await task.save();
           }
@@ -776,62 +853,69 @@ const toggleBlockUser = async (req, res) => {
           // Clean up delegation rules in EmployeeTarget
           await EmployeeTarget.updateMany(
             {},
-            { $pull: { delegations: { internId: user._id.toString() } } }
+            { $pull: { delegations: { internId: user._id.toString() } } },
           );
         }
-      } else if (user.role === 'employee' && targetUserId) {
+      } else if (user.role === "employee" && targetUserId) {
         // Employee block with reassignment
         const targetEmployee = await User.findOne({
           _id: targetUserId,
-          isBlocked: { $ne: true }
+          isBlocked: { $ne: true },
         });
 
         if (targetEmployee) {
           await Task.updateMany(
-            { employeeId: user._id.toString(), status: { $ne: 'completed' } },
-            { $set: { employeeId: targetEmployee._id.toString(), assignedTo: targetEmployee.name } }
+            { employeeId: user._id.toString(), status: { $ne: "completed" } },
+            {
+              $set: {
+                employeeId: targetEmployee._id.toString(),
+                assignedTo: targetEmployee.name,
+              },
+            },
           );
 
           await EmployeeTarget.updateMany(
-            { employeeId: user._id, status: 'In Progress' },
-            { $set: { employeeId: targetEmployee._id } }
+            { employeeId: user._id, status: "In Progress" },
+            { $set: { employeeId: targetEmployee._id } },
           );
 
           await Notification.create({
-            title: 'Tasks Reassigned',
+            title: "Tasks Reassigned",
             message: `Active tasks from ${user.name} have been reassigned to you.`,
-            category: 'task',
-            severity: 'info',
-            userId: targetEmployee._id
+            category: "task",
+            severity: "info",
+            userId: targetEmployee._id,
           });
         }
       }
     }
 
     // Notify Managers
-    const managers = await User.find({ role: 'manager' });
+    const managers = await User.find({ role: "manager" });
     if (managers.length > 0) {
-      const managerNotifications = managers.map(m => ({
-        title: user.isBlocked ? 'User Blocked' : 'User Unblocked',
-        message: `${req.user?.name || 'Administrator'} ${user.isBlocked ? 'blocked' : 'unblocked'} ${user.role} ${user.name}.`,
-        category: 'system',
-        severity: user.isBlocked ? 'warning' : 'info',
-        userId: m._id
+      const managerNotifications = managers.map((m) => ({
+        title: user.isBlocked ? "User Blocked" : "User Unblocked",
+        message: `${req.user?.name || "Administrator"} ${user.isBlocked ? "blocked" : "unblocked"} ${user.role} ${user.name}.`,
+        category: "system",
+        severity: user.isBlocked ? "warning" : "info",
+        userId: m._id,
       }));
       await Notification.insertMany(managerNotifications);
     }
 
     res.json({
       success: true,
-      message: user.isBlocked ? "User blocked successfully" : "User unblocked successfully",
+      message: user.isBlocked
+        ? "User blocked successfully"
+        : "User unblocked successfully",
       data: {
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
         isBlocked: user.isBlocked,
-        blockedAt: user.blockedAt
-      }
+        blockedAt: user.blockedAt,
+      },
     });
   } catch (error) {
     console.error("Error toggling block user:", error);

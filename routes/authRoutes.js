@@ -17,7 +17,7 @@ import {
   reassignAndDeleteIntern,
   toggleBlockUser,
 } from '../controllers/authController.js';
-import { protect, admin, employee, employeeOrIntern } from '../middleware/authMiddleware.js';
+import { protect, admin, employee, employeeOrIntern, managerOrEmployee } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -44,22 +44,22 @@ router.route('/employees/:id/toggle-block')
 router.route('/users/:id/toggle-block')
   .put(protect, employeeOrIntern, toggleBlockUser);
 
-// Employee Intern Management
+// Intern Management
 router.route('/my-interns')
-  .post(protect, employee, createIntern)
+  .post(protect, managerOrEmployee, createIntern)
   .get(protect, employeeOrIntern, getMyInterns);
 
 router.route('/my-interns/:id')
-  .put(protect, employee, updateMyIntern)
-  .delete(protect, employee, deleteMyIntern);
+  .put(protect, managerOrEmployee, updateMyIntern)
+  .delete(protect, managerOrEmployee, deleteMyIntern);
 
 router.route('/my-interns/:id/toggle-block')
   .put(protect, employeeOrIntern, toggleBlockUser);
 
 router.route('/my-interns/:id/reassign-and-delete')
-  .post(protect, employee, reassignAndDeleteIntern);
+  .post(protect, managerOrEmployee, reassignAndDeleteIntern);
 
 router.route('/my-interns/:id/password')
-  .put(protect, employee, updateMyInternPassword);
+  .put(protect, managerOrEmployee, updateMyInternPassword);
 
 export default router;

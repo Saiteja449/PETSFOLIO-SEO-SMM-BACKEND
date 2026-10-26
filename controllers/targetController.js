@@ -655,16 +655,23 @@ export const addDelegation = async (req, res) => {
       return res.status(400).json({ success: false, message: "Target quantity must be a positive number." });
     }
 
-    const maxTargetGoal = Math.max(
-      Number(target.targetGoal) || 0,
-      Number(target.monthlyTarget) || 0,
-      Number(target.weeklyTarget) || 0,
-    );
+    const directGoal = Number(target.targetGoal);
+    const freq = (target.frequency || "").toLowerCase();
+    let maxTargetGoal = directGoal > 0 ? directGoal : 0;
+    if (!maxTargetGoal) {
+      if (freq === "daily" && target.monthlyTarget) {
+        maxTargetGoal = Math.round(Number(target.monthlyTarget) / 25) || 1;
+      } else if (freq === "weekly" && target.weeklyTarget) {
+        maxTargetGoal = Number(target.weeklyTarget) || 0;
+      } else {
+        maxTargetGoal = Number(target.monthlyTarget) || Number(target.targetGoal) || 0;
+      }
+    }
 
     if (maxTargetGoal > 0 && requestedQty > maxTargetGoal) {
       return res.status(400).json({
         success: false,
-        message: `Target quantity cannot exceed the total target goal of ${maxTargetGoal}.`
+        message: `Target quantity cannot exceed the per-${freq || 'task'} goal of ${maxTargetGoal}.`
       });
     }
 
