@@ -87,11 +87,19 @@ export const getTasks = async (req, res) => {
       query.companyId = new RegExp(`^${companyId}$`, "i");
     }
     if (employeeId && employeeId !== "all") {
-      query.$or = [
+      const orConditions = [
         { employeeId: employeeId },
         { assignedTo: employeeId },
         { "subTasks.assignedToInternId": String(employeeId) },
       ];
+      if (mongoose.Types.ObjectId.isValid(employeeId)) {
+        const objId = new mongoose.Types.ObjectId(employeeId);
+        orConditions.push(
+          { employeeId: objId },
+          { "subTasks.assignedToInternId": objId }
+        );
+      }
+      query.$or = orConditions;
     }
     if (weekLabel) query.weekLabel = weekLabel;
     if (department) query.department = department; // SMM, SEO, Content, Sales, Creative

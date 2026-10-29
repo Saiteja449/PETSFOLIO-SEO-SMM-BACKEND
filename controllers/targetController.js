@@ -750,9 +750,27 @@ export const addDelegation = async (req, res) => {
     }
 
     if (target.companyId && target.companyId !== "all") {
-      andConditions.push({
-        companyId: new RegExp(`^${target.companyId}$`, "i")
-      });
+      const companyMatches = [
+        { companyId: target.companyId },
+        { companyId: new RegExp(`^${target.companyId}$`, "i") }
+      ];
+      try {
+        const comp = await Company.findOne({
+          $or: [
+            { id: target.companyId },
+            { id: new RegExp(`^${target.companyId}$`, "i") },
+            ...(mongoose.Types.ObjectId.isValid(target.companyId) ? [{ _id: target.companyId }] : [])
+          ]
+        });
+        if (comp) {
+          if (comp.id) companyMatches.push({ companyId: comp.id }, { companyId: new RegExp(`^${comp.id}$`, "i") });
+          if (comp._id) companyMatches.push({ companyId: comp._id.toString() });
+          if (comp.name) companyMatches.push({ companyId: comp.name }, { companyId: new RegExp(`^${comp.name}$`, "i") });
+        }
+      } catch (e) {
+        // ignore
+      }
+      andConditions.push({ $or: companyMatches });
     }
 
     if (department.toUpperCase() === 'SMM' && target.platform && target.platform !== 'Both') {
@@ -810,29 +828,65 @@ export const addDelegation = async (req, res) => {
       status: { $ne: 'completed' },
     });
 
-    for (const task of tasksToUpdate) {
-      // Heal date formatting if needed
-      if (task.dueDate) {
-        task.date = formatLocalDateStr(task.dueDate);
-      }
+    if (tasksToUpdate.length === 0) {
+      // Fallback: If no uncompleted task exists for today, automatically create today's task with the subtask
+      const todayDate = new Date();
+      todayDate.setHours(12, 0, 0, 0);
 
-      const remainingCapacity = Math.max(0, (task.targetQuantity || 0) - (task.completedQuantity || 0));
-      const cappedQuantity = Math.min(requestedQty, remainingCapacity);
+      const newTask = new Task({
+        title: templateName,
+        type: templateName,
+        department,
+        platform: target.platform || "Both",
+        status: "notstarted",
+        assignedTo: employee?.email || "",
+        employeeId: target.employeeId?.toString(),
+        companyId: target.companyId || "petsfolio",
+        weekLabel: `Week ${getWeekNumber(todayDate)}`,
+        date: todayISTStr,
+        dueDate: todayDate,
+        startDate: todayDate,
+        frequency: target.frequency || "Daily",
+        targetQuantity: Number(target.targetGoal) || Number(target.monthlyTarget) || requestedQty || 1,
+        dailyExpiry: true,
+        isAutomated: true,
+        subTasks: [
+          {
+            assignedToInternId: String(internId),
+            assignedByEmployeeId: String(target.employeeId),
+            targetQuantity: requestedQty,
+            notes: notes || '',
+            status: 'notstarted'
+          }
+        ]
+      });
+      await newTask.save();
+      tasksToUpdate.push(newTask);
+    } else {
+      for (const task of tasksToUpdate) {
+        // Heal date formatting if needed
+        if (task.dueDate) {
+          task.date = formatLocalDateStr(task.dueDate);
+        }
 
-      const existingSubtask = task.subTasks.find(st => String(st.assignedToInternId) === String(internId));
-      if (existingSubtask) {
-        existingSubtask.targetQuantity = cappedQuantity;
-        existingSubtask.notes = notes || existingSubtask.notes;
-      } else {
-        task.subTasks.push({
-          assignedToInternId: String(internId),
-          assignedByEmployeeId: String(target.employeeId),
-          targetQuantity: cappedQuantity,
-          notes: notes || '',
-          status: 'notstarted'
-        });
+        const remainingCapacity = Math.max(0, (task.targetQuantity || 0) - (task.completedQuantity || 0));
+        const cappedQuantity = Math.min(requestedQty, remainingCapacity);
+
+        const existingSubtask = task.subTasks.find(st => String(st.assignedToInternId) === String(internId));
+        if (existingSubtask) {
+          existingSubtask.targetQuantity = cappedQuantity;
+          existingSubtask.notes = notes || existingSubtask.notes;
+        } else {
+          task.subTasks.push({
+            assignedToInternId: String(internId),
+            assignedByEmployeeId: String(target.employeeId),
+            targetQuantity: cappedQuantity,
+            notes: notes || '',
+            status: 'notstarted'
+          });
+        }
+        await task.save();
       }
-      await task.save();
     }
 
     // Resolve the string companyId (e.g. "ikc") to the Company's ObjectId
