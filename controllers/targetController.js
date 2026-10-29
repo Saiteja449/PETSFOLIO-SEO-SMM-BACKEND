@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import TaskTemplate from "../models/TaskTemplate.js";
 import EmployeeTarget from "../models/EmployeeTarget.js";
 import TrackedVideo from "../models/TrackedVideo.js";
