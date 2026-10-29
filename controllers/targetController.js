@@ -17,10 +17,22 @@ const isSecondSaturday = (d) => {
   return dateNum >= 8 && dateNum <= 14;
 };
 
+const formatLocalDateStr = (d) => {
+  if (!d) return '';
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return '';
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 const buildHolidaySet = (holidays) => {
   const set = new Set();
   for (const h of holidays) {
-    set.add(h.date.toISOString().split("T")[0]);
+    if (h.date) {
+      set.add(formatLocalDateStr(h.date));
+    }
   }
   return set;
 };
@@ -28,18 +40,19 @@ const buildHolidaySet = (holidays) => {
 const isWorkingDay = (d, holidaySet) => {
   if (d.getDay() === 0) return false; // Sunday
   if (isSecondSaturday(d)) return false; // 2nd Saturday
-  if (holidaySet && holidaySet.has(d.toISOString().split("T")[0])) return false; // Holiday
+  const dateStr = formatLocalDateStr(d);
+  if (holidaySet && holidaySet.has(dateStr)) return false; // Holiday
   return true;
 };
 
 const getWorkingDaysInMonth = (year, month, holidaySet) => {
-  const startOfMonth = new Date(year, month, 1);
   const endOfMonth = new Date(year, month + 1, 0);
   const totalDays = endOfMonth.getDate();
   const workingDays = [];
 
   for (let i = 1; i <= totalDays; i++) {
-    const d = new Date(year, month, i);
+    // Setting 12:00:00 (midday) ensures safe timezone handling without any UTC date shift
+    const d = new Date(year, month, i, 12, 0, 0);
     if (isWorkingDay(d, holidaySet)) {
       workingDays.push(d);
     }
@@ -184,7 +197,7 @@ const getTaskGenerationContext = async (assignment, user, employeeId, companyId)
       employeeId,
       companyId,
       weekLabel: `Week ${getWeekNumber(entry.date)}`,
-      date: entry.date.toISOString().split("T")[0],
+      date: formatLocalDateStr(entry.date),
       dueDate: entry.date,
       startDate: entry.startDate,
       frequency: assignment.frequency,
@@ -246,10 +259,10 @@ export const generateBatchTasks = async (employeeId, companyId, assignments) => 
         taskEntries = generateDailyTasks(targetGoal, futurePlacementDays);
         // Filter out days that already have an in-progress or completed task
         taskEntries = taskEntries.filter(entry => {
-          const dateStr = entry.date.toISOString().split("T")[0];
+          const dateStr = formatLocalDateStr(entry.date);
           return !tasksToKeep.some(t => {
             if (!t.dueDate) return false;
-            return new Date(t.dueDate).toISOString().split("T")[0] === dateStr;
+            return formatLocalDateStr(t.dueDate) === dateStr;
           });
         });
 
@@ -724,9 +737,42 @@ export const addDelegation = async (req, res) => {
       andConditions.push({ platform: target.platform });
     }
 
-    if (target.startDate) {
-      andConditions.push({ dueDate: { $gte: target.startDate } });
-    }
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    // Clean up any uncompleted subtasks mistakenly attached to past expired daily tasks for this intern
+    await Task.updateMany(
+      {
+        employeeId: target.employeeId,
+        dailyExpiry: true,
+        dueDate: { $lt: todayStart },
+        "subTasks.assignedToInternId": internId,
+        "subTasks.status": { $ne: "completed" },
+      },
+      {
+        $pull: {
+          subTasks: {
+            assignedToInternId: internId,
+            status: { $ne: "completed" },
+          },
+        },
+      }
+    );
+
+    // Only delegate to active tasks:
+    // Daily tasks must be due today or in the future; past daily tasks are already expired.
+    // Non-expiring rollover tasks (dailyExpiry: false) may start from target.startDate.
+    const minActiveDate = target.startDate && new Date(target.startDate) > todayStart
+      ? new Date(target.startDate)
+      : todayStart;
+
+    andConditions.push({
+      $or: [
+        { dailyExpiry: true, dueDate: { $gte: minActiveDate } },
+        { dailyExpiry: { $ne: true }, dueDate: { $gte: target.startDate ? new Date(target.startDate) : minActiveDate } }
+      ]
+    });
+
     if (target.endDate) {
       andConditions.push({ dueDate: { $lte: target.endDate } });
     }
@@ -737,6 +783,11 @@ export const addDelegation = async (req, res) => {
     });
 
     for (const task of tasksToUpdate) {
+      // Heal date formatting if needed
+      if (task.dueDate) {
+        task.date = formatLocalDateStr(task.dueDate);
+      }
+
       const remainingCapacity = Math.max(0, (task.targetQuantity || 0) - (task.completedQuantity || 0));
       const cappedQuantity = Math.min(targetQuantity, remainingCapacity);
 

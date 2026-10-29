@@ -85,6 +85,30 @@ export const getTasks = async (req, res) => {
     const query = {};
     if (companyId && companyId !== "all") query.companyId = companyId;
     if (employeeId && employeeId !== "all") {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      // If user is an intern, clean up any uncompleted subtasks on past expired daily tasks
+      const requestingUser = await User.findById(employeeId).lean();
+      if (requestingUser && requestingUser.role === "intern") {
+        await Task.updateMany(
+          {
+            "subTasks.assignedToInternId": employeeId,
+            "subTasks.status": { $ne: "completed" },
+            dailyExpiry: true,
+            dueDate: { $lt: todayStart },
+          },
+          {
+            $pull: {
+              subTasks: {
+                assignedToInternId: employeeId,
+                status: { $ne: "completed" },
+              },
+            },
+          }
+        );
+      }
+
       query.$or = [
         { employeeId: employeeId },
         { assignedTo: employeeId },
@@ -387,6 +411,35 @@ export const splitTask = async (req, res) => {
       return res
         .status(400)
         .json({ success: false, message: "Cannot split legacy task" });
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    // Prevent delegating expired daily tasks to interns
+    if (task.dailyExpiry && task.dueDate && new Date(task.dueDate) < todayStart) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Cannot assign expired daily tasks to an intern." });
+    }
+
+    // Ensure dueDate and date are synchronized
+    if (!task.dueDate) {
+      const now = new Date();
+      now.setHours(12, 0, 0, 0);
+      task.dueDate = now;
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const dd = String(now.getDate()).padStart(2, "0");
+      task.date = `${yyyy}-${mm}-${dd}`;
+    } else {
+      const d = new Date(task.dueDate);
+      if (!isNaN(d.getTime())) {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        task.date = `${yyyy}-${mm}-${dd}`;
+      }
+    }
 
     const company = task.companyId
       ? await Company.findOne({ id: task.companyId })
