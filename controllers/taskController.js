@@ -83,36 +83,14 @@ export const getTasks = async (req, res) => {
     const { companyId, employeeId, weekLabel, department } = req.query;
 
     const query = {};
-    if (companyId && companyId !== "all") query.companyId = companyId;
+    if (companyId && companyId !== "all") {
+      query.companyId = new RegExp(`^${companyId}$`, "i");
+    }
     if (employeeId && employeeId !== "all") {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-
-      // If user is an intern, clean up any uncompleted subtasks on past expired daily tasks
-      const requestingUser = await User.findById(employeeId).lean();
-      if (requestingUser && requestingUser.role === "intern") {
-        await Task.updateMany(
-          {
-            "subTasks.assignedToInternId": employeeId,
-            "subTasks.status": { $ne: "completed" },
-            dailyExpiry: true,
-            dueDate: { $lt: todayStart },
-          },
-          {
-            $pull: {
-              subTasks: {
-                assignedToInternId: employeeId,
-                status: { $ne: "completed" },
-              },
-            },
-          }
-        );
-      }
-
       query.$or = [
         { employeeId: employeeId },
         { assignedTo: employeeId },
-        { "subTasks.assignedToInternId": employeeId },
+        { "subTasks.assignedToInternId": String(employeeId) },
       ];
     }
     if (weekLabel) query.weekLabel = weekLabel;

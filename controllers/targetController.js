@@ -715,44 +715,72 @@ export const addDelegation = async (req, res) => {
     await target.save();
 
     // Retroactively inject subtasks into uncompleted tasks for this target's timeframe
-    const department = target.templateId?.department || target.targetType || "SMM";
-    const templateName = target.templateId?.name || target.customName || `${department} Task`;
+    const employee = await User.findById(target.employeeId);
     const empIdStr = target.employeeId?.toString();
 
+    let templateName = target.templateId?.name;
+    if (!templateName && target.templateId) {
+      const tmpl = await TaskTemplate.findById(target.templateId);
+      if (tmpl) templateName = tmpl.name;
+    }
+    if (!templateName) {
+      templateName = target.customName || target.title;
+    }
+
+    const department = target.templateId?.department || target.targetType || "SMM";
+
     const andConditions = [
-      { $or: [{ employeeId: empIdStr }, { employeeId: target.employeeId }] },
-      { companyId: target.companyId },
-      { department: new RegExp(`^${department}$`, "i") },
       {
         $or: [
-          { title: templateName },
-          { type: templateName },
-          { title: new RegExp(templateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "i") },
-          { type: new RegExp(templateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "i") }
+          { employeeId: empIdStr },
+          { employeeId: target.employeeId },
+          ...(employee?.email ? [{ assignedTo: employee.email }] : [])
         ]
-      }
+      },
+      { department: new RegExp(`^${department}$`, "i") }
     ];
+
+    if (templateName) {
+      andConditions.push({
+        $or: [
+          { title: new RegExp(templateName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "i") },
+          { type: new RegExp(templateName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "i") }
+        ]
+      });
+    }
+
+    if (target.companyId && target.companyId !== "all") {
+      andConditions.push({
+        companyId: new RegExp(`^${target.companyId}$`, "i")
+      });
+    }
 
     if (department.toUpperCase() === 'SMM' && target.platform && target.platform !== 'Both') {
       andConditions.push({ platform: target.platform });
     }
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    const todayISTStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+    const startOfTodayIST = new Date(todayISTStr + 'T00:00:00+05:30');
+    // Buffer threshold for past tasks: 12 hours before start of today in IST
+    const safePastThreshold = new Date(startOfTodayIST.getTime() - 12 * 60 * 60 * 1000);
 
     // Clean up any uncompleted subtasks mistakenly attached to past expired daily tasks for this intern
     await Task.updateMany(
       {
-        employeeId: target.employeeId,
+        $or: [
+          { employeeId: target.employeeId },
+          { employeeId: empIdStr },
+          ...(employee?.email ? [{ assignedTo: employee.email }] : [])
+        ],
         dailyExpiry: true,
-        dueDate: { $lt: todayStart },
-        "subTasks.assignedToInternId": internId,
+        dueDate: { $lt: safePastThreshold },
+        "subTasks.assignedToInternId": String(internId),
         "subTasks.status": { $ne: "completed" },
       },
       {
         $pull: {
           subTasks: {
-            assignedToInternId: internId,
+            assignedToInternId: String(internId),
             status: { $ne: "completed" },
           },
         },
@@ -762,13 +790,13 @@ export const addDelegation = async (req, res) => {
     // Only delegate to active tasks:
     // Daily tasks must be due today or in the future; past daily tasks are already expired.
     // Non-expiring rollover tasks (dailyExpiry: false) may start from target.startDate.
-    const minActiveDate = target.startDate && new Date(target.startDate) > todayStart
+    const minActiveDate = target.startDate && new Date(target.startDate) > safePastThreshold
       ? new Date(target.startDate)
-      : todayStart;
+      : safePastThreshold;
 
     andConditions.push({
       $or: [
-        { dailyExpiry: true, dueDate: { $gte: minActiveDate } },
+        { dailyExpiry: true, $or: [{ dueDate: { $gte: minActiveDate } }, { date: todayISTStr }] },
         { dailyExpiry: { $ne: true }, dueDate: { $gte: target.startDate ? new Date(target.startDate) : minActiveDate } }
       ]
     });
@@ -789,16 +817,16 @@ export const addDelegation = async (req, res) => {
       }
 
       const remainingCapacity = Math.max(0, (task.targetQuantity || 0) - (task.completedQuantity || 0));
-      const cappedQuantity = Math.min(targetQuantity, remainingCapacity);
+      const cappedQuantity = Math.min(requestedQty, remainingCapacity);
 
-      const existingSubtask = task.subTasks.find(st => st.assignedToInternId === internId);
+      const existingSubtask = task.subTasks.find(st => String(st.assignedToInternId) === String(internId));
       if (existingSubtask) {
         existingSubtask.targetQuantity = cappedQuantity;
         existingSubtask.notes = notes || existingSubtask.notes;
       } else {
         task.subTasks.push({
-          assignedToInternId: internId,
-          assignedByEmployeeId: target.employeeId,
+          assignedToInternId: String(internId),
+          assignedByEmployeeId: String(target.employeeId),
           targetQuantity: cappedQuantity,
           notes: notes || '',
           status: 'notstarted'
@@ -806,7 +834,6 @@ export const addDelegation = async (req, res) => {
       }
       await task.save();
     }
-    const employee = await User.findById(target.employeeId);
 
     // Resolve the string companyId (e.g. "ikc") to the Company's ObjectId
     let companyObjectId = null;
@@ -866,23 +893,45 @@ export const removeDelegation = async (req, res) => {
     await target.save();
 
     // Remove subtasks from uncompleted tasks
-    const department = target.templateId?.department || target.targetType || "SMM";
-    const templateName = target.templateId?.name || target.customName || `${department} Task`;
+    const employee = await User.findById(target.employeeId);
     const empIdStr = target.employeeId?.toString();
 
+    let templateName = target.templateId?.name;
+    if (!templateName && target.templateId) {
+      const tmpl = await TaskTemplate.findById(target.templateId);
+      if (tmpl) templateName = tmpl.name;
+    }
+    if (!templateName) {
+      templateName = target.customName || target.title;
+    }
+
+    const department = target.templateId?.department || target.targetType || "SMM";
+
     const andConditions = [
-      { $or: [{ employeeId: empIdStr }, { employeeId: target.employeeId }] },
-      { companyId: target.companyId },
-      { department: new RegExp(`^${department}$`, "i") },
       {
         $or: [
-          { title: templateName },
-          { type: templateName },
-          { title: new RegExp(templateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "i") },
-          { type: new RegExp(templateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "i") }
+          { employeeId: empIdStr },
+          { employeeId: target.employeeId },
+          ...(employee?.email ? [{ assignedTo: employee.email }] : [])
         ]
-      }
+      },
+      { department: new RegExp(`^${department}$`, "i") }
     ];
+
+    if (templateName) {
+      andConditions.push({
+        $or: [
+          { title: new RegExp(templateName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "i") },
+          { type: new RegExp(templateName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "i") }
+        ]
+      });
+    }
+
+    if (target.companyId && target.companyId !== "all") {
+      andConditions.push({
+        companyId: new RegExp(`^${target.companyId}$`, "i")
+      });
+    }
 
     if (department.toUpperCase() === 'SMM' && target.platform && target.platform !== 'Both') {
       andConditions.push({ platform: target.platform });
@@ -916,7 +965,6 @@ export const removeDelegation = async (req, res) => {
       }
       await task.save();
     }
-    const employee = await User.findById(target.employeeId);
     const intern = await User.findById(internId);
 
     // Resolve the string companyId (e.g. "ikc") to the Company's ObjectId
