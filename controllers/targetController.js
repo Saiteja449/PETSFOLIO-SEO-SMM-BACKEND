@@ -829,64 +829,126 @@ export const addDelegation = async (req, res) => {
       status: { $ne: 'completed' },
     });
 
-    if (tasksToUpdate.length === 0) {
-      // Fallback: If no uncompleted task exists for today, automatically create today's task with the subtask
-      const todayDate = new Date();
-      todayDate.setHours(12, 0, 0, 0);
+    for (const task of tasksToUpdate) {
+      // Heal date formatting if needed
+      if (task.dueDate) {
+        task.date = formatLocalDateStr(task.dueDate);
+      }
 
-      const newTask = new Task({
-        title: templateName,
-        type: templateName,
-        department,
-        platform: target.platform || "Both",
-        status: "notstarted",
-        assignedTo: employee?.email || "",
-        employeeId: target.employeeId?.toString(),
-        companyId: target.companyId || "petsfolio",
-        weekLabel: `Week ${getWeekNumber(todayDate)}`,
-        date: todayISTStr,
-        dueDate: todayDate,
-        startDate: todayDate,
-        frequency: target.frequency || "Daily",
-        targetQuantity: Number(target.targetGoal) || Number(target.monthlyTarget) || requestedQty || 1,
-        dailyExpiry: true,
-        isAutomated: true,
-        subTasks: [
-          {
-            assignedToInternId: String(internId),
-            assignedByEmployeeId: String(target.employeeId),
-            targetQuantity: requestedQty,
-            notes: notes || '',
-            status: 'notstarted'
+      const remainingCapacity = Math.max(0, (task.targetQuantity || 0) - (task.completedQuantity || 0));
+      const cappedQuantity = Math.min(requestedQty, remainingCapacity);
+
+      const existingSubtask = task.subTasks.find(st => String(st.assignedToInternId) === String(internId));
+      if (existingSubtask) {
+        existingSubtask.targetQuantity = cappedQuantity;
+        existingSubtask.notes = notes || existingSubtask.notes;
+      } else {
+        task.subTasks.push({
+          assignedToInternId: String(internId),
+          assignedByEmployeeId: String(target.employeeId),
+          targetQuantity: cappedQuantity,
+          notes: notes || '',
+          status: 'notstarted'
+        });
+      }
+      await task.save();
+    }
+
+    // Ensure daily tasks exist for Today and upcoming 7 days in the schedule
+    if (!target.frequency || target.frequency === 'Daily') {
+      const allHolidays = await Holiday.find({});
+      const holidaySet = buildHolidaySet(allHolidays);
+
+      for (let dayOffset = 0; dayOffset <= 7; dayOffset++) {
+        const targetDate = new Date();
+        targetDate.setDate(targetDate.getDate() + dayOffset);
+        targetDate.setHours(12, 0, 0, 0);
+
+        if (target.endDate && targetDate > new Date(target.endDate)) continue;
+        if (!isWorkingDay(targetDate, holidaySet)) continue;
+
+        const dateStr = formatLocalDateStr(targetDate);
+        const alreadyInTasksToUpdate = tasksToUpdate.some(t => {
+          const tDate = t.date || (t.dueDate ? formatLocalDateStr(t.dueDate) : null);
+          return tDate === dateStr;
+        });
+
+        if (alreadyInTasksToUpdate) continue;
+
+        const existingTaskInDb = await Task.findOne({
+          $and: [
+            {
+              $or: [
+                { employeeId: empIdStr },
+                { employeeId: target.employeeId },
+                ...(employee?.email ? [{ assignedTo: employee.email }] : [])
+              ]
+            },
+            {
+              $or: [
+                { date: dateStr },
+                { dueDate: { $gte: new Date(dateStr + "T00:00:00.000Z"), $lte: new Date(dateStr + "T23:59:59.999Z") } }
+              ]
+            },
+            {
+              $or: [
+                { title: new RegExp(`^${templateName.trim()}$`, "i") },
+                { type: new RegExp(`^${templateName.trim()}$`, "i") }
+              ]
+            },
+            ...(target.companyId && target.companyId !== "all" ? [{ companyId: target.companyId }] : [])
+          ]
+        });
+
+        if (existingTaskInDb) {
+          if (existingTaskInDb.status !== 'completed') {
+            const remainingCapacity = Math.max(0, (existingTaskInDb.targetQuantity || 0) - (existingTaskInDb.completedQuantity || 0));
+            const cappedQuantity = Math.min(requestedQty, remainingCapacity);
+            const existingSubtask = existingTaskInDb.subTasks.find(st => String(st.assignedToInternId) === String(internId));
+            if (existingSubtask) {
+              existingSubtask.targetQuantity = cappedQuantity;
+              existingSubtask.notes = notes || existingSubtask.notes;
+            } else {
+              existingTaskInDb.subTasks.push({
+                assignedToInternId: String(internId),
+                assignedByEmployeeId: String(target.employeeId),
+                targetQuantity: cappedQuantity,
+                notes: notes || '',
+                status: 'notstarted'
+              });
+            }
+            await existingTaskInDb.save();
           }
-        ]
-      });
-      await newTask.save();
-      tasksToUpdate.push(newTask);
-    } else {
-      for (const task of tasksToUpdate) {
-        // Heal date formatting if needed
-        if (task.dueDate) {
-          task.date = formatLocalDateStr(task.dueDate);
-        }
-
-        const remainingCapacity = Math.max(0, (task.targetQuantity || 0) - (task.completedQuantity || 0));
-        const cappedQuantity = Math.min(requestedQty, remainingCapacity);
-
-        const existingSubtask = task.subTasks.find(st => String(st.assignedToInternId) === String(internId));
-        if (existingSubtask) {
-          existingSubtask.targetQuantity = cappedQuantity;
-          existingSubtask.notes = notes || existingSubtask.notes;
         } else {
-          task.subTasks.push({
-            assignedToInternId: String(internId),
-            assignedByEmployeeId: String(target.employeeId),
-            targetQuantity: cappedQuantity,
-            notes: notes || '',
-            status: 'notstarted'
+          const newTask = new Task({
+            title: templateName,
+            type: templateName,
+            department,
+            platform: target.platform || "Both",
+            status: "notstarted",
+            assignedTo: employee?.email || "",
+            employeeId: target.employeeId?.toString(),
+            companyId: target.companyId || "petsfolio",
+            weekLabel: `Week ${getWeekNumber(targetDate)}`,
+            date: dateStr,
+            dueDate: targetDate,
+            startDate: targetDate,
+            frequency: "Daily",
+            targetQuantity: Number(target.targetGoal) || Number(target.monthlyTarget) || requestedQty || 1,
+            dailyExpiry: true,
+            isAutomated: true,
+            subTasks: [
+              {
+                assignedToInternId: String(internId),
+                assignedByEmployeeId: String(target.employeeId),
+                targetQuantity: requestedQty,
+                notes: notes || '',
+                status: 'notstarted'
+              }
+            ]
           });
+          await newTask.save();
         }
-        await task.save();
       }
     }
 
