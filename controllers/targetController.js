@@ -391,6 +391,14 @@ export const assignTarget = async (req, res) => {
       frequency, targetGoal, expected, startDate, endDate,
     } = req.body;
 
+    const employee = await User.findById(employeeId);
+    if (!employee) {
+      return res.status(404).json({ success: false, message: "Employee not found" });
+    }
+    if (employee.isBlocked) {
+      return res.status(400).json({ success: false, message: "Cannot assign targets to a deactivated/blocked user." });
+    }
+
     const template = await TaskTemplate.findById(templateId);
     const targetType = template?.department || req.body.targetType || 'SMM';
 
@@ -428,6 +436,14 @@ export const assignTarget = async (req, res) => {
 export const assignBatchTargets = async (req, res) => {
   try {
     const { employeeId, managerId, companyId, assignments } = req.body;
+
+    const employee = await User.findById(employeeId);
+    if (!employee) {
+      return res.status(404).json({ success: false, message: "Employee not found" });
+    }
+    if (employee.isBlocked) {
+      return res.status(400).json({ success: false, message: "Cannot assign targets to a deactivated/blocked user." });
+    }
 
     const savedTargets = [];
     const now = new Date();
