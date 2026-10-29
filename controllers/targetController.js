@@ -698,10 +698,17 @@ export const addDelegation = async (req, res) => {
       }
     }
 
-    if (maxTargetGoal > 0 && requestedQty > maxTargetGoal) {
+    // Check sum of other delegations to enforce per-target capacity limit
+    const alreadyDelegatedToOthers = (target.delegations || [])
+      .filter(d => String(d.internId?._id || d.internId) !== String(internId))
+      .reduce((sum, d) => sum + (Number(d.targetQuantity) || 0), 0);
+
+    const remainingAllowed = Math.max(0, maxTargetGoal - alreadyDelegatedToOthers);
+
+    if (maxTargetGoal > 0 && requestedQty > remainingAllowed) {
       return res.status(400).json({
         success: false,
-        message: `Target quantity cannot exceed the per-${freq || 'task'} goal of ${maxTargetGoal}.`
+        message: `Cannot delegate ${requestedQty} tasks. Only ${remainingAllowed} of ${maxTargetGoal} tasks remain available (${alreadyDelegatedToOthers} already delegated to other interns).`
       });
     }
 
