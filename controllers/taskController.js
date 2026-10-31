@@ -489,7 +489,12 @@ export const updateSubTask = async (req, res) => {
         .status(404)
         .json({ success: false, message: "SubTask not found" });
 
-    if (status) subTask.status = status;
+    if (status) {
+      subTask.status = status;
+      if (status === "completed") {
+        subTask.approvalStatus = "pending";
+      }
+    }
     if (proofUrl) subTask.proofUrl = proofUrl;
     if (notes) subTask.notes = notes;
 
@@ -499,13 +504,13 @@ export const updateSubTask = async (req, res) => {
     if (quantityAdded) {
       subTask.completedQuantity =
         (subTask.completedQuantity || 0) + Number(quantityAdded);
-      task.completedQuantity =
-        (task.completedQuantity || 0) + Number(quantityAdded);
 
       if (subTask.completedQuantity >= subTask.targetQuantity) {
         subTask.status = "completed";
+        subTask.approvalStatus = "pending";
       } else if (subTask.completedQuantity > 0) {
         subTask.status = "inprogress";
+        subTask.approvalStatus = "pending";
       }
 
       subTask.submissions.push({
@@ -609,6 +614,179 @@ export const updateSubTask = async (req, res) => {
     res.status(200).json({ success: true, data: task });
   } catch (error) {
     console.error("Error updating subtask:", error);
+    res
+      .status(500)
+      .json({ success: false, message: error.message || "Server error" });
+  }
+};
+
+// @desc    Approve a sub-task submission
+// @route   PUT /api/tasks/:id/subtasks/:subTaskId/approve
+// @access  Public
+export const approveSubTask = async (req, res) => {
+  try {
+    const { id, subTaskId } = req.params;
+    const { approvedBy } = req.body;
+
+    const task = await Task.findById(id);
+    if (!task)
+      return res
+        .status(404)
+        .json({ success: false, message: "Task not found" });
+
+    const subTask = task.subTasks.id(subTaskId);
+    if (!subTask)
+      return res
+        .status(404)
+        .json({ success: false, message: "SubTask not found" });
+
+    subTask.approvalStatus = "approved";
+    subTask.approvedAt = new Date();
+    subTask.rejectionReason = "";
+    if (approvedBy) {
+      subTask.approvedBy = approvedBy;
+    }
+
+    if ((subTask.completedQuantity || 0) >= subTask.targetQuantity) {
+      subTask.status = "completed";
+      if (!subTask.completedAt) subTask.completedAt = new Date();
+    }
+
+    // Recalculate parent task completedQuantity based on approved subtasks + direct updates
+    const directUpdatesQty = (task.updates || []).reduce(
+      (acc, u) => acc + (u.quantityAdded || 0),
+      0,
+    );
+    const approvedSubtasksQty = (task.subTasks || [])
+      .filter(
+        (st) =>
+          st.approvalStatus === "approved" ||
+          !st.approvalStatus ||
+          st.approvalStatus === "none",
+      )
+      .reduce((acc, st) => acc + (st.completedQuantity || 0), 0);
+
+    task.completedQuantity = Math.min(
+      task.targetQuantity,
+      directUpdatesQty + approvedSubtasksQty,
+    );
+    if (task.completedQuantity >= task.targetQuantity) {
+      task.status = "completed";
+    }
+
+    await task.save();
+
+    const empId =
+      task.employeeId ||
+      (await User.findOne({ email: task.assignedTo }))?._id;
+    if (empId) {
+      await recalculateTargetProgress(empId, task.type, task.department);
+    }
+
+    if (subTask.assignedToInternId) {
+      await recalculateTargetProgress(
+        subTask.assignedToInternId,
+        task.type,
+        task.department,
+      );
+    }
+
+    // Notification to Intern
+    try {
+      const company = task.companyId
+        ? await Company.findOne({ id: task.companyId })
+        : null;
+      await Notification.create({
+        title: "Task Approved ✅",
+        message: `Your work on "${task.title}" has been approved by ${approvedBy?.name || "your mentor/employee"}!`,
+        category: "task",
+        severity: "success",
+        userId: subTask.assignedToInternId,
+        ...(company?._id ? { companyId: company._id } : {}),
+      });
+    } catch (notifErr) {
+      console.error("Error creating approve notification:", notifErr);
+    }
+
+    res.status(200).json({
+      success: true,
+      data: task,
+      message: "Sub-task approved successfully",
+    });
+  } catch (error) {
+    console.error("Error approving subtask:", error);
+    res
+      .status(500)
+      .json({ success: false, message: error.message || "Server error" });
+  }
+};
+
+// @desc    Reject a sub-task submission
+// @route   PUT /api/tasks/:id/subtasks/:subTaskId/reject
+// @access  Public
+export const rejectSubTask = async (req, res) => {
+  try {
+    const { id, subTaskId } = req.params;
+    const { reason, rejectedBy } = req.body;
+
+    const task = await Task.findById(id);
+    if (!task)
+      return res
+        .status(404)
+        .json({ success: false, message: "Task not found" });
+
+    const subTask = task.subTasks.id(subTaskId);
+    if (!subTask)
+      return res
+        .status(404)
+        .json({ success: false, message: "SubTask not found" });
+
+    subTask.approvalStatus = "rejected";
+    subTask.rejectionReason = reason || "Changes requested by employee.";
+    subTask.status = "inprogress"; // keep it in progress so intern can address feedback and re-submit
+
+    await task.save();
+
+    // Recalculate progress so rejected task doesn't count towards target
+    const empId =
+      task.employeeId ||
+      (await User.findOne({ email: task.assignedTo }))?._id;
+    if (empId) {
+      await recalculateTargetProgress(empId, task.type, task.department);
+    }
+
+    if (subTask.assignedToInternId) {
+      await recalculateTargetProgress(
+        subTask.assignedToInternId,
+        task.type,
+        task.department,
+      );
+    }
+
+    // Notification to Intern
+    try {
+      const company = task.companyId
+        ? await Company.findOne({ id: task.companyId })
+        : null;
+      await Notification.create({
+        title: "Task Submission Needs Revision ⚠️",
+        message: `Your submission on "${task.title}" was not approved. Feedback: ${reason || "Please check details and re-submit."}`,
+        category: "task",
+        severity: "error",
+        userId: subTask.assignedToInternId,
+        ...(company?._id ? { companyId: company._id } : {}),
+      });
+    } catch (notifErr) {
+      console.error("Error creating reject notification:", notifErr);
+    }
+
+    res.status(200).json({
+      success: true,
+      data: task,
+      message: "Sub-task marked as rejected",
+    });
+  } catch (error) {
+    console.error("Error rejecting subtask:", error);
     res
       .status(500)
       .json({ success: false, message: error.message || "Server error" });

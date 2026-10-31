@@ -108,6 +108,14 @@ const taskSchema = new mongoose.Schema(
       targetQuantity: { type: Number, required: true },
       completedQuantity: { type: Number, default: 0 },
       status: { type: String, enum: ['notstarted', 'inprogress', 'paused', 'completed'], default: 'notstarted' },
+      approvalStatus: { type: String, enum: ['none', 'pending', 'approved', 'rejected'], default: 'none' },
+      rejectionReason: { type: String, default: '' },
+      approvedAt: Date,
+      approvedBy: {
+        userId: String,
+        name: String,
+        role: String
+      },
       proofUrl: { type: String },
       notes: { type: String },
       completedBy: {
