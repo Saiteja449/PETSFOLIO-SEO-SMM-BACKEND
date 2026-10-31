@@ -2,6 +2,9 @@ import User from "../models/User.js";
 import Company from "../models/Company.js";
 import Task from "../models/Task.js";
 import EmployeeTarget from "../models/EmployeeTarget.js";
+import TrackedLink from "../models/TrackedLink.js";
+import LinkClick from "../models/LinkClick.js";
+import Lead from "../models/Lead.js";
 
 // Helper to parse date range or default to current month
 function parseDateRange(query) {
@@ -166,11 +169,29 @@ export async function getBiOverview(req, res) {
 
     const dailyTrend = Object.values(trendMap);
 
-    // 6. Working days
+    // 6. Working days & Avg Productivity
     const workingDays = calculateWorkingDays(start, end);
     const avgProductivity = currentStats.completed > 0 && activeEmployees > 0
       ? (currentStats.completed / (activeEmployees * workingDays)).toFixed(1)
       : "0.0";
+
+    // 7. Links & Leads Marketing Summary for Period
+    const linkMatch = companyId && companyId !== "all" ? { companyId, isActive: true } : { isActive: true };
+    const totalLinks = await TrackedLink.countDocuments(linkMatch);
+    const activeLinkIds = (await TrackedLink.find(linkMatch).select("_id").lean()).map((l) => l._id);
+    const totalClicks = await LinkClick.countDocuments({
+      linkId: { $in: activeLinkIds },
+      createdAt: { $gte: start, $lte: end },
+    });
+
+    const leadMatch = {
+      createdAt: { $gte: start, $lte: end },
+    };
+    if (companyId && companyId !== "all") leadMatch.companyId = companyId;
+
+    const totalLeads = await Lead.countDocuments(leadMatch);
+    const convertedLeads = await Lead.countDocuments({ ...leadMatch, status: "converted" });
+    const leadConversionRate = totalLeads > 0 ? Math.round((convertedLeads / totalLeads) * 100) : 0;
 
     res.json({
       success: true,
@@ -197,6 +218,13 @@ export async function getBiOverview(req, res) {
           tasksPerEmployeePerDay: parseFloat(avgProductivity),
           totalCompleted: currentStats.completed,
           activeStaffCount: activeEmployees + activeInterns,
+        },
+        marketingSummary: {
+          totalLinks,
+          totalClicks,
+          totalLeads,
+          convertedLeads,
+          leadConversionRate,
         },
         departmentBreakdown,
         dailyTrend,
@@ -250,7 +278,6 @@ export async function getBiProductivity(req, res) {
       const userIdStr = user._id.toString();
       const userEmailNorm = (user.email || "").toLowerCase().trim();
 
-      // Find tasks assigned to this employee or delegated as subtasks to this intern
       let assignedCount = 0;
       let completedCount = 0;
       let overdueCount = 0;
@@ -328,7 +355,6 @@ export async function getBiProductivity(req, res) {
       const completionRate = assignedCount > 0 ? Math.round((completedCount / assignedCount) * 100) : 0;
       const targetAchievementRate = targetGoal > 0 ? Math.min(Math.round((achievedTarget / targetGoal) * 100), 100) : completionRate;
 
-      // Performance Score: weighted 60% completion rate + 30% target achievement + 10% on-time bonus
       const onTimeRate = completedCount > 0 ? (onTimeCount / completedCount) * 100 : 0;
       const performanceScore = Math.min(
         Math.round(completionRate * 0.6 + targetAchievementRate * 0.3 + onTimeRate * 0.1),
@@ -366,7 +392,6 @@ export async function getBiProductivity(req, res) {
       };
     });
 
-    // Sort leaderboard by performance score descending
     const leaderboard = [...userMetrics].sort((a, b) => b.performanceScore - a.performanceScore);
     const underperforming = userMetrics.filter((u) => u.performanceScore < 55 || u.overdueTasks > 5);
 
@@ -392,8 +417,6 @@ export async function getBiSuggestions(req, res) {
     const allTasks = await Task.find({
       $or: [{ dueDate: { $gte: start, $lte: end } }, { createdAt: { $gte: start, $lte: end } }],
     }).lean();
-
-    const users = await User.find({ isBlocked: false }).select("name role department").lean();
 
     const suggestions = [];
 

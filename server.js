@@ -13,6 +13,8 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import seoAnalyticsRoutes from './routes/seoAnalyticsRoutes.js';
 import holidayRoutes from './routes/holidayRoutes.js';
 import biRoutes from './routes/biRoutes.js';
+import linkTrackingRoutes from './routes/linkTrackingRoutes.js';
+import leadRoutes from './routes/leadRoutes.js';
 import { setupMonthlyTaskGenerator } from './jobs/monthlyTaskGenerator.js';
 
 dotenv.config();
@@ -35,6 +37,9 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/seo-analytics', seoAnalyticsRoutes);
 app.use('/api/holidays', holidayRoutes);
 app.use('/api/bi', biRoutes);
+app.use('/api/links', linkTrackingRoutes);
+app.use('/api/leads', leadRoutes);
+app.get('/l/:code', (req, res) => res.redirect(302, `/api/links/r/${req.params.code}`));
 
 // Test Route
 app.get('/', (req, res) => {
