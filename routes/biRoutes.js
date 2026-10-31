@@ -11,11 +11,21 @@ import {
   generateMonthlyReportHTML,
   getPreviousMonthDateRange,
 } from "../services/monthlyReportService.js";
+import {
+  getBiOverview,
+  getBiProductivity,
+  getBiSuggestions,
+} from "../controllers/biAnalyticsController.js";
 
 const router = express.Router();
 
 // Apply authentication to all BI routes
 router.use(protect);
+
+// --- Phase 1: Core BI Dashboard & Productivity Analytics ---
+router.get("/overview", getBiOverview);
+router.get("/productivity", getBiProductivity);
+router.get("/suggestions", getBiSuggestions);
 
 // 1. Get all chat sessions for the logged in user
 router.get("/sessions", async (req, res) => {
