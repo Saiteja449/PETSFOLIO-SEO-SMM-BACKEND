@@ -1,0 +1,84 @@
+[
+  {
+    "id": 1,
+    "question": "How many employees are there in GoalX?",
+    "category": "headcount_employee",
+    "validation": {
+      "mustNotContain": ["20 individuals registered in the GoalX CRM system"],
+      "mustContainOneOf": ["employee", "employees"],
+      "shouldDistinguishRole": true
+    }
+  },
+  {
+    "id": 2,
+    "question": "How many interns are registered?",
+    "category": "headcount_intern",
+    "validation": {
+      "mustContainOneOf": ["intern", "interns"]
+    }
+  },
+  {
+    "id": 3,
+    "question": "How many managers or admins are in the system?",
+    "category": "headcount_manager",
+    "validation": {
+      "mustContainOneOf": ["manager", "managers"]
+    }
+  },
+  {
+    "id": 4,
+    "question": "What is the total number of registered users and the breakdown by role?",
+    "category": "user_summary",
+    "validation": {
+      "mustContainOneOf": ["employee", "intern", "manager"]
+    }
+  },
+  {
+    "id": 5,
+    "question": "How many blocked users are there in the system?",
+    "category": "blocked_users",
+    "validation": {
+      "mustContainOneOf": ["blocked", "0", "active"]
+    }
+  },
+  {
+    "id": 6,
+    "question": "How many companies or brands are in GoalX?",
+    "category": "companies_count",
+    "validation": {
+      "mustContainOneOf": ["brand", "company", "companies", "brands"]
+    }
+  },
+  {
+    "id": 7,
+    "question": "How many completed tasks are there?",
+    "category": "tasks_completed",
+    "validation": {
+      "mustContainOneOf": ["completed", "task", "tasks"]
+    }
+  },
+  {
+    "id": 8,
+    "question": "How many pending tasks are there?",
+    "category": "tasks_pending",
+    "validation": {
+      "mustContainOneOf": ["pending", "task", "tasks"]
+    }
+  },
+  {
+    "id": 9,
+    "question": "How many tasks belong to the SEO department?",
+    "category": "tasks_seo",
+    "validation": {
+      "mustContainOneOf": ["SEO", "seo", "task", "tasks"]
+    }
+  },
+  {
+    "id": 10,
+    "question": "How many tasks belong to the SMM department?",
+    "category": "tasks_smm",
+    "validation": {
+      "mustContainOneOf": ["SMM", "smm", "task", "tasks"]
+    }
+  }
+]
