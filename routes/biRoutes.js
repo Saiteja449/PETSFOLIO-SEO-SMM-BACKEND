@@ -473,7 +473,7 @@ CRITICAL DATA ACCURACY RULES:
     },
   };
 
-  const modelEndpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
+  const modelEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
 
   let response = await axios.post(modelEndpoint, requestBody, {
     headers: { "Content-Type": "application/json" },
@@ -549,14 +549,14 @@ CRITICAL DATA ACCURACY RULES:
       followUpResponse.data.candidates &&
       followUpResponse.data.candidates.length > 0
     ) {
-      aiMessageText = followUpResponse.data.candidates[0].content.parts[0].text;
+      const c = followUpResponse.data?.candidates?.[0]; aiMessageText = c?.content?.parts?.filter(p => p.text).map(p => p.text).join("\n") || "";
     }
   } else if (
     response.data &&
     response.data.candidates &&
     response.data.candidates.length > 0
   ) {
-    aiMessageText = response.data.candidates[0].content.parts[0].text;
+    const c = response.data?.candidates?.[0]; aiMessageText = c?.content?.parts?.filter(p => p.text).map(p => p.text).join("\n") || "";
   }
 
   if (!aiMessageText) {
@@ -616,7 +616,7 @@ router.post("/chat", async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error("Error in BI Chat:", error.response?.data || error.message);
-    res.status(500).json({ error: error.message || "Internal server error" });
+    const detail = error.response?.data?.error?.message || error.message || "Internal server error"; res.status(500).json({ error: detail });
   }
 });
 
