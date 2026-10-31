@@ -19,3 +19,4 @@ router.delete("/:id", deleteLead);
 router.get("/analytics", getLeadAnalytics);
 
 export default router;
+

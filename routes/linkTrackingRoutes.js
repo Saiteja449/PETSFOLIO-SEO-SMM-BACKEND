@@ -21,3 +21,4 @@ router.delete("/:id", deleteTrackedLink);
 router.get("/analytics", getLinkAnalytics);
 
 export default router;
+

@@ -58,3 +58,4 @@ const trackedLinkSchema = new mongoose.Schema(
 const TrackedLink = mongoose.model("TrackedLink", trackedLinkSchema);
 
 export default TrackedLink;
+

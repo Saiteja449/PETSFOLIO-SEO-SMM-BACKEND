@@ -47,3 +47,4 @@ const linkClickSchema = new mongoose.Schema(
 const LinkClick = mongoose.model("LinkClick", linkClickSchema);
 
 export default LinkClick;
+

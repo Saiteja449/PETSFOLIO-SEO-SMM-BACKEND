@@ -15,6 +15,7 @@ import {
   getBiOverview,
   getBiProductivity,
   getBiSuggestions,
+  getBiMarketing,
 } from "../controllers/biAnalyticsController.js";
 
 const router = express.Router();
@@ -26,6 +27,8 @@ router.use(protect);
 router.get("/overview", getBiOverview);
 router.get("/productivity", getBiProductivity);
 router.get("/suggestions", getBiSuggestions);
+// --- Phase 3: Unified SEO & SMM Marketing Analytics ---
+router.get("/marketing", getBiMarketing);
 
 // 1. Get all chat sessions for the logged in user
 router.get("/sessions", async (req, res) => {
